@@ -1,0 +1,11 @@
+{
+  "version": "1.0.6",
+  "notes": "Auto updater fixed with proper permissions",
+  "pub_date": "2025-12-27T00:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeHJhMUc0RDFaNkZzNUI5WFJDRko0U0RZWi9IY1NNbCtLajB4RXhDUU9rZy8wL2M4VzBwRFRoYTdMenZpRlRSOFVTN0lsWm9TUWZKblNjTXhJb29WZWdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY2ODQ5MzE0CWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjAuNl94NjQtc2V0dXAuZXhlCklScXhsQ1lOTyt5WW5jR1dGN3E5ZEI4QkdRMHJUdGlDUXdlUmQ4WFN6VDlZYXN6em1OazNNNlVOM0xVRksvazY3RTJSUTY0eEIvQ0FVQ0cxMXRqMERBPT0K",
+      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.0.6/Kusoglu.Finans.2026_1.0.6_x64-setup.exe"
+    }
+  }
+}
