@@ -1,0 +1,51 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Kusoglu Finans 2026",
+  "version": "1.0.5",
+  "identifier": "com.kusoglu.finans",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Kuşoğlu Finans",
+        "width": 1400,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://api.github.com/repos/borakusoglu/KusogluFinans/releases/latest"
+      ],
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM2MDExNURCQkFEREZBNDMKUldSRCt0MjYyeFVCeHA2azRTakJLeFEzTWZRdjJWWUZnMWZNMFdHUXJGWFZTNHJKUS9ITS9xSmIK",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}
