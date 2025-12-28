@@ -1,7 +1,7 @@
 {
   "version": "1.0.8",
-  "notes": "Version 1.0.8 - Bug fixes and improvements",
-  "pub_date": "2025-01-28T00:00:00Z",
+  "notes": "Version 1.0.8 - Backup sistemi ve offline desteği eklendi",
+  "pub_date": "2025-01-29T00:00:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "",
