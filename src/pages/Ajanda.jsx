@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import YeniOdeme from '../components/YeniOdeme';
 import OdemeListesi from '../components/OdemeListesi';
 import * as firestore from '../firebase/firestore';
@@ -16,7 +16,7 @@ const themeGradients = {
   dots: { calendar: 'radial-gradient(circle at 2px 2px, #d1d5db 1px, transparent 1px), linear-gradient(135deg, #f9fafb, #f3f4f6)', sidebar: 'linear-gradient(to bottom, #6b7280, #4b5563)', backgroundSize: '20px 20px' },
 };
 
-export default function Ajanda() {
+export default function Ajanda({ user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [payments, setPayments] = useState([]);
   const [showNewModal, setShowNewModal] = useState(false);
@@ -25,7 +25,11 @@ export default function Ajanda() {
   const [selectedDayPayments, setSelectedDayPayments] = useState([]);
   const [showLabel, setShowLabel] = useState(false);
   const [hoveredDay, setHoveredDay] = useState(null);
-  const [theme, setTheme] = useState('indigo');
+  const [theme, setTheme] = useState(null);
+  const [showPastDateWarning, setShowPastDateWarning] = useState(false);
+  const [pendingDate, setPendingDate] = useState(null);
+
+  const canEdit = user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'editor';
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -55,7 +59,12 @@ export default function Ajanda() {
     const start = format(startOfMonth(currentDate), 'yyyy-MM-dd');
     const end = format(endOfMonth(currentDate), 'yyyy-MM-dd');
     const data = await firestore.getPayments({ startDate: start, endDate: end });
-    setPayments(data);
+    
+    const user = JSON.parse(localStorage.getItem('user'));
+    const isAdmin = user?.role === 'superadmin' || user?.role === 'admin';
+    
+    const filteredData = isAdmin ? data : data.filter(p => !p.is_admin_only);
+    setPayments(filteredData);
   };
 
   const monthStart = startOfMonth(currentDate);
@@ -83,20 +92,24 @@ export default function Ajanda() {
       return isSameDay(new Date(compareDate), day);
     });
     
-    // Çekler için kayıt tarihi ve vade tarihine göre sıralama
     return dayPayments.sort((a, b) => {
       if (a.payment_method === 'cek' && b.payment_method === 'cek') {
-        // Her ikisi de çekse, önce kayıt tarihine göre sırala
         const dateCompare = new Date(a.payment_date) - new Date(b.payment_date);
         if (dateCompare !== 0) return dateCompare;
-        // Kayıt tarihleri aynıysa vade tarihine göre sırala
         return new Date(a.due_date) - new Date(b.due_date);
       }
-      if (a.payment_method === 'cek') return -1; // Çekler önce
+      if (a.payment_method === 'cek') return -1;
       if (b.payment_method === 'cek') return 1;
-      // Diğerleri için ödeme tarihine göre sırala
       return new Date(a.payment_date) - new Date(b.payment_date);
     });
+  };
+  
+  const getCheckIssueDatesForDay = (day) => {
+    return payments.filter(p => 
+      p.payment_method === 'cek' && 
+      p.payment_date && 
+      isSameDay(new Date(p.payment_date), day)
+    );
   };
 
   const getTotalForDay = (day) => {
@@ -141,11 +154,24 @@ export default function Ajanda() {
 
   const handleDayClick = (day) => {
     const dayPayments = getPaymentsForDay(day);
-    if (dayPayments.length > 0) {
+    const checkIssueDates = getCheckIssueDatesForDay(day);
+    
+    if (dayPayments.length > 0 || checkIssueDates.length > 0) {
       setSelectedDate(day);
-      setSelectedDayPayments(dayPayments);
+      setSelectedDayPayments([...dayPayments, ...checkIssueDates]);
       setShowListModal(true);
-    } else {
+    } else if (canEdit) {
+      const today = new Date();
+      const selectedDay = new Date(day);
+      today.setHours(0, 0, 0, 0);
+      selectedDay.setHours(0, 0, 0, 0);
+      
+      if (selectedDay.getTime() < today.getTime()) {
+        setPendingDate(day);
+        setShowPastDateWarning(true);
+        return;
+      }
+      
       setSelectedDate(day);
       setShowNewModal(true);
     }
@@ -153,6 +179,11 @@ export default function Ajanda() {
 
   return (
     <div style={{height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '50px', background: 'linear-gradient(to bottom right, #f9fafb, #dbeafe)', animation: 'pageFadeIn 0.3s ease-out'}}>
+      {!theme ? (
+        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%'}}>
+          <p style={{fontSize: '18px', color: '#6b7280'}}>Yükleniyor...</p>
+        </div>
+      ) : (
       <div style={{display: 'flex', gap: '0'}}>
         {/* Sol panel - Navigasyon ve Ay */}
         <div style={{background: themeGradients[theme].sidebar, borderRadius: '16px 0 0 16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', minWidth: '250px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'}}>
@@ -182,6 +213,7 @@ export default function Ajanda() {
           </div>
           
           {/* Yeni Ödeme Butonu */}
+          {canEdit && (
           <button
             onClick={() => {
               setSelectedDate(new Date());
@@ -196,32 +228,64 @@ export default function Ajanda() {
             </svg>
             Yeni Ödeme
           </button>
+          )}
           
           {/* Ay Özeti */}
           <div style={{marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px'}}>
             <div style={{background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(8px)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255, 255, 255, 0.2)'}}>
               <div style={{fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '8px', fontWeight: 500}}>Toplam Ödeme</div>
               <div style={{fontSize: '24px', fontWeight: 'bold', color: 'white'}}>
-                {payments.reduce((sum, p) => p.payment_method !== 'devir' ? sum + p.amount : sum, 0).toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺
+                {payments.filter(p => {
+                  if (p.payment_method !== 'devir') {
+                    if (p.payment_method === 'cek' && p.due_date) {
+                      const start = format(startOfMonth(currentDate), 'yyyy-MM-dd');
+                      const end = format(endOfMonth(currentDate), 'yyyy-MM-dd');
+                      return p.due_date >= start && p.due_date <= end;
+                    }
+                    return true;
+                  }
+                  return false;
+                }).reduce((sum, p) => sum + p.amount, 0).toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺
               </div>
             </div>
             <div style={{background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(8px)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255, 255, 255, 0.2)'}}>
               <div style={{fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '8px', fontWeight: 500}}>Ödeme Sayısı</div>
               <div style={{fontSize: '24px', fontWeight: 'bold', color: 'white'}}>
-                {payments.filter(p => p.payment_method !== 'devir').length}
+                {payments.filter(p => {
+                  if (p.payment_method !== 'devir') {
+                    if (p.payment_method === 'cek' && p.due_date) {
+                      const start = format(startOfMonth(currentDate), 'yyyy-MM-dd');
+                      const end = format(endOfMonth(currentDate), 'yyyy-MM-dd');
+                      return p.due_date >= start && p.due_date <= end;
+                    }
+                    return true;
+                  }
+                  return false;
+                }).length}
               </div>
             </div>
             <div style={{background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(8px)', borderRadius: '12px', padding: '12px', border: '1px solid rgba(255, 255, 255, 0.2)'}}>
               <div style={{fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '8px', fontWeight: 500}}>Ödeme Tipleri</div>
               <div style={{display: 'flex', flexDirection: 'column', gap: '6px'}}>
                 {(() => {
-                  const krediKarti = payments.filter(p => p.payment_type === 'kredi_karti' && p.payment_method !== 'devir').length;
-                  const cari = payments.filter(p => p.payment_type === 'cari' && p.payment_method !== 'devir').length;
-                  const serbest = payments.filter(p => p.payment_type === 'serbest').length;
-                  const nakit = payments.filter(p => p.payment_method === 'nakit').length;
-                  const dbs = payments.filter(p => p.payment_method === 'dbs').length;
-                  const havale = payments.filter(p => p.payment_method === 'havale').length;
-                  const cek = payments.filter(p => p.payment_method === 'cek').length;
+                  const filteredPayments = payments.filter(p => {
+                    if (p.payment_method !== 'devir') {
+                      if (p.payment_method === 'cek' && p.due_date) {
+                        const start = format(startOfMonth(currentDate), 'yyyy-MM-dd');
+                        const end = format(endOfMonth(currentDate), 'yyyy-MM-dd');
+                        return p.due_date >= start && p.due_date <= end;
+                      }
+                      return true;
+                    }
+                    return false;
+                  });
+                  const krediKarti = filteredPayments.filter(p => p.payment_type === 'kredi_karti').length;
+                  const cari = filteredPayments.filter(p => p.payment_type === 'cari').length;
+                  const serbest = filteredPayments.filter(p => p.payment_type === 'serbest').length;
+                  const nakit = filteredPayments.filter(p => p.payment_method === 'nakit').length;
+                  const dbs = filteredPayments.filter(p => p.payment_method === 'dbs').length;
+                  const havale = filteredPayments.filter(p => p.payment_method === 'havale').length;
+                  const cek = filteredPayments.filter(p => p.payment_method === 'cek').length;
                   return (
                     <>
                       {krediKarti > 0 && (
@@ -289,6 +353,7 @@ export default function Ajanda() {
 
           {days.map(day => {
             const dayPayments = getPaymentsForDay(day);
+            const checkIssueDates = getCheckIssueDatesForDay(day);
             const total = getTotalForDay(day);
             const isToday = isSameDay(day, new Date());
             const holiday = isHoliday(day);
@@ -349,23 +414,55 @@ export default function Ajanda() {
                     )}
                   </div>
                   
+                  {/* Çek kesiliş ikonu */}
+                  {checkIssueDates.length > 0 && dayPayments.length === 0 && (
+                    <div style={{position: 'absolute', bottom: '4px', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '3px'}}>
+                      <svg style={{width: '18px', height: '18px', color: '#7c3aed'}} fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                        <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
+                      </svg>
+                      <span style={{fontSize: '11px', fontWeight: 600, color: '#7c3aed'}}>{checkIssueDates.length}</span>
+                    </div>
+                  )}
+                  
                   {dayPayments.length > 0 && (
                     <div style={{marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: isCompact ? '2px' : '4px', marginLeft: '-4px', marginRight: '-4px'}}>
                       <div style={{fontSize: amountFontSize, fontWeight: 'bold', padding: isCompact ? '3px 5px' : '5px 8px', borderRadius: '6px', textAlign: 'center', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', whiteSpace: 'nowrap', overflow: 'hidden', ...(isToday ? {background: 'rgba(255, 255, 255, 0.3)', color: 'white'} : {background: 'linear-gradient(to right, #ef4444, #ec4899)', color: 'white'})}}>
                         {total.toLocaleString('tr-TR')} ₺
                       </div>
-                      <div style={{fontSize: countFontSize, fontWeight: 500, textAlign: 'center', color: isToday ? 'rgba(255, 255, 255, 0.9)' : '#4b5563'}}>
+                      <div style={{fontSize: countFontSize, fontWeight: 500, textAlign: 'center', color: isToday ? 'rgba(255, 255, 255, 0.9)' : '#4b5563', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'}}>
                         {dayPayments.length} ödeme
+                        {checkIssueDates.length > 0 && (
+                          <span style={{display: 'flex', alignItems: 'center', gap: '3px', marginLeft: '3px'}}>
+                            <svg style={{width: '18px', height: '18px', color: '#7c3aed'}} fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                              <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
+                            </svg>
+                            <span style={{fontSize: '11px', color: '#7c3aed', fontWeight: 600}}>{checkIssueDates.length}</span>
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
                 
                 {/* + butonu sağ üst köşede */}
-                {hoveredDay && isSameDay(hoveredDay, day) && (
+                {canEdit && hoveredDay && isSameDay(hoveredDay, day) && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      
+                      const today = new Date();
+                      const selectedDay = new Date(day);
+                      today.setHours(0, 0, 0, 0);
+                      selectedDay.setHours(0, 0, 0, 0);
+                      
+                      if (selectedDay.getTime() < today.getTime()) {
+                        setPendingDate(day);
+                        setShowPastDateWarning(true);
+                        return;
+                      }
+                      
                       setSelectedDate(day);
                       setShowNewModal(true);
                     }}
@@ -378,10 +475,11 @@ export default function Ajanda() {
               </div>
             );
           })}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-    </div>
+      )}
 
       {showNewModal && (
         <YeniOdeme
@@ -406,7 +504,45 @@ export default function Ajanda() {
             setShowListModal(false);
             // Edit modal will be handled in OdemeListesi
           }}
+          canEdit={canEdit}
         />
+      )}
+
+      {showPastDateWarning && (
+        <div className="fixed inset-0 flex items-center justify-center z-[60]">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPastDateWarning(false)}></div>
+          <div className="bg-white rounded-2xl shadow-2xl w-[500px] relative z-10">
+            <div className="p-6 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h3 className="text-2xl font-bold">Geçmiş Tarih Uyarısı</h3>
+              </div>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-800 text-lg mb-6">Geçmiş bir tarihe ödeme girişi yapıyorsunuz. Devam etmek istiyor musunuz?</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowPastDateWarning(false);
+                    setSelectedDate(pendingDate);
+                    setShowNewModal(true);
+                  }}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-semibold transition-all"
+                >
+                  Devam Et
+                </button>
+                <button
+                  onClick={() => setShowPastDateWarning(false)}
+                  className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-semibold transition-all"
+                >
+                  İptal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

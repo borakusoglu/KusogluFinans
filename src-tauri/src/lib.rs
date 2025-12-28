@@ -1,24 +1,12 @@
-use std::process::Command;
-
 #[tauri::command]
 fn get_hardware_id() -> Result<String, String> {
-    #[cfg(target_os = "windows")]
-    {
-        let output = Command::new("wmic")
-            .args(["csproduct", "get", "uuid"])
-            .output()
-            .map_err(|e| e.to_string())?;
-        
-        let result = String::from_utf8_lossy(&output.stdout);
-        let lines: Vec<&str> = result.lines().collect();
-        
-        if lines.len() > 1 {
-            let uuid = lines[1].trim().to_string();
-            return Ok(uuid);
-        }
-    }
+    // MAC adresini al
+    let mac = match mac_address::get_mac_address() {
+        Ok(Some(ma)) => ma.to_string().replace(":", "").to_uppercase(),
+        _ => "UNKNOWN".to_string(),
+    };
     
-    Err("HWID alınamadı".to_string())
+    Ok(format!("MAC-{}", mac))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

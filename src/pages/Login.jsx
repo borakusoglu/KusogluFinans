@@ -1,25 +1,56 @@
 import { useState } from 'react';
 import { loginUser } from '../firebase/auth';
+import * as firestore from '../firebase/firestore';
 import logo from '../assets/kusoglu-logo.png';
 import { APP_VERSION } from '../config/version';
 import VersionChecker from '../components/VersionChecker';
+import Register from './Register';
 
 export default function Login({ setUser }) {
+  const [showRegister, setShowRegister] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   const [error, setError] = useState('');
+
+  const getDeviceFingerprint = async () => {
+    let deviceId = 'UNKNOWN';
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      deviceId = await invoke('get_hardware_id');
+    } catch (error) {
+      deviceId = localStorage.getItem('deviceId') || 'WEB-' + Date.now().toString(16).toUpperCase();
+      localStorage.setItem('deviceId', deviceId);
+    }
+    
+    let ip = 'Bilinmiyor';
+    try {
+      const ipResponse = await fetch('https://api.ipify.org?format=json');
+      const ipData = await ipResponse.json();
+      ip = ipData.ip;
+    } catch (error) {
+      // IP alınamadı
+    }
+    
+    return `${deviceId} | IP: ${ip}`;
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     
     const result = await loginUser(username, password, keepLoggedIn);
     if (result.success) {
+      const deviceInfo = await getDeviceFingerprint();
+      await firestore.addLog(result.user.username, 'Giriş Yapıldı', deviceInfo);
       setUser(result.user);
     } else {
       setError(result.error);
     }
   };
+
+  if (showRegister) {
+    return <Register onBackToLogin={() => setShowRegister(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-900 to-slate-900 flex items-center justify-center p-4">
@@ -99,6 +130,15 @@ export default function Login({ setUser }) {
           >
             Giriş Yap
           </button>
+
+          <button
+            type="button"
+            onClick={() => setShowRegister(true)}
+            className="w-full text-gray-600 py-2 text-sm hover:text-gray-800 transition-colors"
+          >
+            Hesabınız yok mu? Üye olun
+          </button>
+
           <p className="text-center text-xs text-gray-500 mt-2">v{APP_VERSION}</p>
         </form>
       </div>

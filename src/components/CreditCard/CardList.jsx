@@ -9,9 +9,10 @@ const detectCardType = (code) => {
   return '';
 };
 
-export default function CardList({ cards: initialCards, cardUsages, viewMode, onCardClick }) {
+export default function CardList({ cards: initialCards, cardUsages, viewMode, onCardClick, canEdit = true }) {
   const [cards, setCards] = useState(initialCards);
   const [hoveredCard, setHoveredCard] = useState(null);
+  const user = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
     setCards(initialCards);
@@ -60,7 +61,11 @@ export default function CardList({ cards: initialCards, cardUsages, viewMode, on
           return (
             <div key={card.id} onClick={() => onCardClick(card)} style={{display: 'grid', gridTemplateColumns: '150px 120px 80px 120px 100px 120px 120px 80px', gap: '16px', padding: '16px', borderBottom: '1px solid #f3f4f6', cursor: 'pointer', alignItems: 'center', opacity: card.is_active ? 1 : 0.6}}>
               <p style={{fontWeight: 600, color: card.is_active ? '#111827' : '#6b7280'}}>{card.owner_name || card.name}</p>
-              <p style={{fontFamily: 'monospace', textAlign: 'center', color: card.is_active ? '#111827' : '#6b7280'}}>**** {card.code.slice(-4)}</p>
+              <p style={{fontFamily: 'monospace', textAlign: 'center', color: card.is_active ? '#111827' : '#6b7280'}}>
+                {user?.role === 'superadmin' || user?.role === 'admin' 
+                  ? '**** ' + card.code.slice(-4)
+                  : '**** ' + card.code.slice(-4)}
+              </p>
               <div style={{textAlign: 'center', color: '#6b7280', fontSize: '14px'}}>{detectCardType(card.code)}</div>
               <p style={{color: card.is_active ? '#111827' : '#6b7280'}}>{card.bank}</p>
               <p style={{textAlign: 'center', color: card.is_active ? '#111827' : '#6b7280'}}>{card.expiry_date || '-'}</p>
@@ -68,8 +73,9 @@ export default function CardList({ cards: initialCards, cardUsages, viewMode, on
               <p style={{fontWeight: 600, textAlign: 'right', color: card.is_active ? '#111827' : '#6b7280'}}>{card.limit_amount.toLocaleString('tr-TR')} ₺</p>
               <div style={{textAlign: 'center'}}>
                 <button
-                  onClick={(e) => handleToggleActive(e, card)}
-                  style={{padding: '4px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: 600, background: card.is_active ? '#dcfce7' : '#f3f4f6', color: card.is_active ? '#166534' : '#6b7280', border: 'none', cursor: 'pointer'}}
+                  onClick={(e) => canEdit && handleToggleActive(e, card)}
+                  disabled={!canEdit}
+                  style={{padding: '4px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: 600, background: card.is_active ? '#dcfce7' : '#f3f4f6', color: card.is_active ? '#166534' : '#6b7280', border: 'none', cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.6}}
                 >
                   {card.is_active ? 'Aktif' : 'İnaktif'}
                 </button>
@@ -113,11 +119,12 @@ export default function CardList({ cards: initialCards, cardUsages, viewMode, on
                 <div onClick={() => onCardClick(card)} style={{background: gradient, borderRadius: '16px', padding: '24px', color: 'white', boxShadow: hoveredCard === card.id ? '0 30px 60px -12px rgba(0, 0, 0, 0.35)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)', aspectRatio: '1.586/1', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', overflow: 'hidden', transition: 'box-shadow 0.3s ease'}}>
                   {hoveredCard === card.id && (
                     <button
-                      onClick={(e) => handleToggleActive(e, card)}
-                      style={{position: 'absolute', top: '12px', right: '12px', zIndex: 20, padding: '8px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '8px', border: 'none', cursor: 'pointer', backdropFilter: 'blur(10px)', transition: 'all 0.2s', opacity: 1, animation: 'fadeIn 0.2s ease-in'}}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-                      title={card.is_active ? 'İnaktif Yap' : 'Aktif Yap'}
+                      onClick={(e) => canEdit && handleToggleActive(e, card)}
+                      disabled={!canEdit}
+                      style={{position: 'absolute', top: '12px', right: '12px', zIndex: 20, padding: '8px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '8px', border: 'none', cursor: canEdit ? 'pointer' : 'not-allowed', backdropFilter: 'blur(10px)', transition: 'all 0.2s', opacity: canEdit ? 1 : 0.5, animation: 'fadeIn 0.2s ease-in'}}
+                      onMouseEnter={(e) => canEdit && (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)')}
+                      onMouseLeave={(e) => canEdit && (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)')}
+                      title={canEdit ? (card.is_active ? 'İnaktif Yap' : 'Aktif Yap') : (card.is_active ? 'Aktif' : 'İnaktif')}
                     >
                       {card.is_active ? (
                         <svg style={{width: '20px', height: '20px', color: 'white'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,7 +153,9 @@ export default function CardList({ cards: initialCards, cardUsages, viewMode, on
                     
                     <div style={{marginBottom: '16px'}}>
                       <p style={{fontSize: '24px', fontFamily: 'monospace', letterSpacing: '0.1em'}}>
-                        {card.code.replace(/-/g, ' ')}
+                        {user?.role === 'superadmin' || user?.role === 'admin' 
+                          ? card.code.replace(/-/g, ' ')
+                          : '**** **** **** ' + card.code.slice(-4)}
                       </p>
                     </div>
                     
@@ -189,11 +198,12 @@ export default function CardList({ cards: initialCards, cardUsages, viewMode, on
                 <div onClick={() => onCardClick(card)} style={{background: gradient, borderRadius: '12px', padding: '12px', color: 'white', boxShadow: hoveredCard === card.id ? '0 25px 35px -5px rgba(0, 0, 0, 0.2)' : '0 20px 25px -5px rgba(0, 0, 0, 0.1)', position: 'relative', overflow: 'hidden', transition: 'box-shadow 0.3s ease'}}>
                   {hoveredCard === card.id && (
                     <button
-                      onClick={(e) => handleToggleActive(e, card)}
-                      style={{position: 'absolute', top: '8px', right: '8px', zIndex: 20, padding: '6px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '6px', border: 'none', cursor: 'pointer', backdropFilter: 'blur(10px)', transition: 'all 0.2s', opacity: 1, animation: 'fadeIn 0.2s ease-in'}}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-                      title={card.is_active ? 'İnaktif Yap' : 'Aktif Yap'}
+                      onClick={(e) => canEdit && handleToggleActive(e, card)}
+                      disabled={!canEdit}
+                      style={{position: 'absolute', top: '8px', right: '8px', zIndex: 20, padding: '6px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '6px', border: 'none', cursor: canEdit ? 'pointer' : 'not-allowed', backdropFilter: 'blur(10px)', transition: 'all 0.2s', opacity: canEdit ? 1 : 0.5, animation: 'fadeIn 0.2s ease-in'}}
+                      onMouseEnter={(e) => canEdit && (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)')}
+                      onMouseLeave={(e) => canEdit && (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)')}
+                      title={canEdit ? (card.is_active ? 'İnaktif Yap' : 'Aktif Yap') : (card.is_active ? 'Aktif' : 'İnaktif')}
                     >
                       {card.is_active ? (
                         <svg style={{width: '16px', height: '16px', color: 'white'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -222,7 +232,9 @@ export default function CardList({ cards: initialCards, cardUsages, viewMode, on
                     
                     <div style={{marginBottom: '8px'}}>
                       <p style={{fontSize: '14px', fontFamily: 'monospace', letterSpacing: '0.05em'}}>
-                        {card.code.replace(/-/g, ' ')}
+                        {user?.role === 'superadmin' || user?.role === 'admin' 
+                          ? card.code.replace(/-/g, ' ')
+                          : '**** **** **** ' + card.code.slice(-4)}
                       </p>
                     </div>
                     

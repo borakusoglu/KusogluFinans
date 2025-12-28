@@ -79,11 +79,146 @@ export default function DuzenleOdeme({ payment, onClose, onCancel }) {
     }
   };
 
+  const updateReminders = async (payment) => {
+    const reminders = await firestore.getReminders();
+    const allCards = await firestore.getCreditCards();
+    const allPayments = await firestore.getPayments({});
+    const paymentDate = new Date(payment.payment_date);
+    const paymentMonth = paymentDate.getMonth();
+    const paymentYear = paymentDate.getFullYear();
+    
+    for (const reminder of reminders) {
+      let shouldUpdate = false;
+      const updates = {};
+      
+      if (reminder.type === 'creditCard' && payment.payment_type === 'kredi_karti') {
+        const reminderCard = allCards.find(c => c.id === reminder.creditCardId);
+        const paymentCard = allCards.find(c => c.id === payment.credit_card_id);
+        
+        if (reminderCard && paymentCard && reminderCard.code === paymentCard.code) {
+          if (reminder.dayStart && reminder.dayEnd) {
+            const dayStart = parseInt(reminder.dayStart);
+            const dayEnd = parseInt(reminder.dayEnd);
+            
+            const hasPaymentInRange = allPayments.some(p => {
+              if (p.payment_type !== 'kredi_karti' || p.credit_card_id !== payment.credit_card_id) return false;
+              const pDate = new Date(p.payment_date);
+              if (pDate.getMonth() !== paymentMonth || pDate.getFullYear() !== paymentYear) return false;
+              const pDay = pDate.getDate();
+              
+              if (dayStart > dayEnd) {
+                return pDay >= dayStart || pDay <= dayEnd;
+              } else {
+                return pDay >= dayStart && pDay <= dayEnd;
+              }
+            });
+            
+            if (hasPaymentInRange) {
+              shouldUpdate = true;
+            }
+          } else {
+            shouldUpdate = true;
+          }
+        }
+      }
+      
+      if (reminder.type === 'cari' && payment.payment_type === 'cari' && payment.cari_id === reminder.cariId) {
+        if (!reminder.paymentType || reminder.paymentType === payment.payment_method) {
+          if (reminder.dayStart && reminder.dayEnd) {
+            const dayStart = parseInt(reminder.dayStart);
+            const dayEnd = parseInt(reminder.dayEnd);
+            
+            const hasPaymentInRange = allPayments.some(p => {
+              if (p.payment_type !== 'cari' || p.cari_id !== payment.cari_id) return false;
+              if (reminder.paymentType && p.payment_method !== reminder.paymentType) return false;
+              const pDate = new Date(p.payment_date);
+              if (pDate.getMonth() !== paymentMonth || pDate.getFullYear() !== paymentYear) return false;
+              const pDay = pDate.getDate();
+              
+              if (dayStart > dayEnd) {
+                return pDay >= dayStart || pDay <= dayEnd;
+              } else {
+                return pDay >= dayStart && pDay <= dayEnd;
+              }
+            });
+            
+            if (hasPaymentInRange) {
+              shouldUpdate = true;
+            }
+          } else {
+            shouldUpdate = true;
+          }
+        }
+      }
+      
+      if (reminder.type === 'creditCard' && payment.payment_type === 'cari' && payment.payment_method === 'kredi_karti') {
+        const reminderCard = allCards.find(c => c.id === reminder.creditCardId);
+        const paymentCard = allCards.find(c => c.id === payment.credit_card_id);
+        
+        if (reminderCard && paymentCard && reminderCard.code === paymentCard.code) {
+          if (reminder.dayStart && reminder.dayEnd) {
+            const dayStart = parseInt(reminder.dayStart);
+            const dayEnd = parseInt(reminder.dayEnd);
+            
+            const hasPaymentInRange = allPayments.some(p => {
+              if (p.payment_method !== 'kredi_karti' || p.credit_card_id !== payment.credit_card_id) return false;
+              const pDate = new Date(p.payment_date);
+              if (pDate.getMonth() !== paymentMonth || pDate.getFullYear() !== paymentYear) return false;
+              const pDay = pDate.getDate();
+              
+              if (dayStart > dayEnd) {
+                return pDay >= dayStart || pDay <= dayEnd;
+              } else {
+                return pDay >= dayStart && pDay <= dayEnd;
+              }
+            });
+            
+            if (hasPaymentInRange) {
+              shouldUpdate = true;
+            }
+          } else {
+            shouldUpdate = true;
+          }
+        }
+      }
+      
+      if (shouldUpdate) {
+        if (reminder.repeatMonthly) {
+          const currentCount = parseInt(reminder.remainingCount) || 0;
+          updates.remainingCount = currentCount + 1;
+        } else {
+          const currentCount = parseInt(reminder.remainingCount) || 0;
+          if (currentCount > 0) {
+            updates.remainingCount = currentCount - 1;
+          }
+        }
+        
+        if (reminder.autoCloseOnPayment) {
+          const newCount = updates.remainingCount !== undefined ? updates.remainingCount : (parseInt(reminder.remainingCount) || 0);
+          if (newCount === 0 && !reminder.repeatMonthly) {
+            updates.isActive = false;
+          }
+        } else {
+          if (updates.remainingCount === 0 && !reminder.repeatMonthly) {
+            updates.isActive = false;
+          }
+        }
+        
+        if (Object.keys(updates).length > 0) {
+          await firestore.updateReminder(reminder.id, updates);
+        }
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     try {
+      // Eski ödeme bilgilerini sakla
+      const oldPayment = { ...payment };
+      
       await firestore.deletePayment(payment.id);
       
       const data = {
@@ -97,12 +232,47 @@ export default function DuzenleOdeme({ payment, onClose, onCancel }) {
         due_date: formData.due_date || null
       };
 
-      // Çek ödemesinde payment_date'i due_date olarak ayarla
+      // Çek ödemesinde payment_date'i değiştirme, sadece due_date'i güncelle
       if (formData.payment_method === 'cek' && formData.due_date) {
-        data.payment_date = formData.due_date;
+        data.payment_date = oldPayment.payment_date; // Eski payment_date'i koru
       }
 
       await firestore.addPayment(data);
+      
+      // Log kaydı oluştur
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (user) {
+        let logDetails = '';
+        
+        if (payment.payment_type === 'kredi_karti') {
+          const card = cards.find(c => c.id === formData.credit_card_id);
+          const account = accounts.find(a => a.id === formData.bank_account_id);
+          logDetails = `Kredi Kartı: ${card?.code || '?'} | Hesap: ${account?.name || '?'} | Tarih: ${formData.payment_date} | Tutar: ${parseFloat(formData.amount).toLocaleString('tr-TR')} ₺`;
+        } else if (payment.payment_type === 'cari') {
+          const cari = cariList.find(c => c.id === formData.cari_id);
+          const paymentMethodText = formData.payment_method === 'nakit' ? 'Nakit' :
+                                    formData.payment_method === 'dbs' ? 'DBS' :
+                                    formData.payment_method === 'havale' ? 'Havale' :
+                                    formData.payment_method === 'kredi_karti' ? 'Kredi Kartı' :
+                                    formData.payment_method === 'cek' ? 'Çek' : '?';
+          
+          if (formData.payment_method === 'cek') {
+            logDetails = `Cari: ${cari?.name || '?'} | Ödeme: Çek | Kesim: ${formData.payment_date} | Vade: ${formData.due_date} | Tutar: ${parseFloat(formData.amount).toLocaleString('tr-TR')} ₺`;
+          } else if (formData.payment_method === 'kredi_karti') {
+            const card = cards.find(c => c.id === formData.credit_card_id);
+            logDetails = `Cari: ${cari?.name || '?'} | Ödeme: Kredi Kartı (${card?.code || '?'}) | Tarih: ${formData.payment_date} | Tutar: ${parseFloat(formData.amount).toLocaleString('tr-TR')} ₺`;
+          } else {
+            logDetails = `Cari: ${cari?.name || '?'} | Ödeme: ${paymentMethodText} | Tarih: ${formData.payment_date} | Tutar: ${parseFloat(formData.amount).toLocaleString('tr-TR')} ₺`;
+          }
+        } else {
+          logDetails = `Serbest Ödeme | Tarih: ${formData.payment_date} | Tutar: ${parseFloat(formData.amount).toLocaleString('tr-TR')} ₺ | Açıklama: ${formData.description || '-'}`;
+        }
+        
+        await firestore.addLog(user.username, 'Ödeme Düzenlendi', logDetails);
+      }
+      
+      await updateReminders(data);
+      window.dispatchEvent(new Event('reminderUpdated'));
       onClose();
     } catch (err) {
       setError(err.message);
@@ -110,7 +280,7 @@ export default function DuzenleOdeme({ payment, onClose, onCancel }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+    <div style={{position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50}}>
       <div className="bg-white rounded-lg shadow-2xl w-[600px] max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b">
           <h2 className="text-2xl font-bold">Ödeme Düzenle</h2>

@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 
-const GITHUB_TOKEN = 'ghp_YOUR_TOKEN_HERE'; // GitHub Personal Access Token
-
 export default function VersionChecker() {
   const [showModal, setShowModal] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
@@ -14,12 +12,16 @@ export default function VersionChecker() {
     checkForUpdates();
   }, []);
 
+  const forceCheck = () => {
+    checkForUpdates();
+  };
+
   const checkForUpdates = async () => {
     try {
       const update = await check({
-        headers: {
-          'Authorization': `Bearer ${GITHUB_TOKEN}`
-        }
+        headers: import.meta.env.VITE_GITHUB_TOKEN ? {
+          'Authorization': `Bearer ${import.meta.env.VITE_GITHUB_TOKEN}`
+        } : {}
       });
       
       if (update?.available) {
@@ -27,7 +29,7 @@ export default function VersionChecker() {
         setShowModal(true);
       }
     } catch (error) {
-      console.error('Versiyon kontrolü başarısız:', error);
+      console.log('Güncelleme kontrolü hatası:', error);
     }
   };
 
@@ -53,7 +55,7 @@ export default function VersionChecker() {
       
       await relaunch();
     } catch (error) {
-      console.error('Güncelleme başarısız:', error);
+      console.log('Güncelleme indirme hatası:', error);
       setDownloading(false);
     }
   };
@@ -97,13 +99,6 @@ export default function VersionChecker() {
         )}
 
         <div style={{display: 'flex', gap: '12px'}}>
-          <button
-            onClick={() => setShowModal(false)}
-            disabled={downloading}
-            style={{flex: 1, padding: '12px', borderRadius: '12px', border: '2px solid #e5e7eb', backgroundColor: 'white', color: '#6b7280', fontWeight: '600', cursor: downloading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', opacity: downloading ? 0.5 : 1}}
-          >
-            Daha Sonra
-          </button>
           <button
             onClick={handleDownload}
             disabled={downloading}

@@ -5,7 +5,7 @@ import CardList from '../components/CreditCard/CardList';
 import CardDetail from '../components/CreditCard/CardDetail';
 import YeniOdeme from '../components/YeniOdeme';
 
-export default function KrediKarti() {
+export default function KrediKarti({ user }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBank, setSelectedBank] = useState('');
   const [selectedCardCategory, setSelectedCardCategory] = useState('');
@@ -15,6 +15,8 @@ export default function KrediKarti() {
   const [showNewPayment, setShowNewPayment] = useState(false);
 
   const { cards, cardUsages, usagesLoaded, loadCards } = useCardData(showInactive);
+
+  const canEdit = user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'editor';
 
   const handleViewModeChange = (mode) => {
     setViewMode(mode);
@@ -95,6 +97,7 @@ export default function KrediKarti() {
               cardUsages={cardUsages}
               viewMode={viewMode}
               onCardClick={setSelectedCard}
+              canEdit={canEdit}
             />
           </div>
         </div>
@@ -104,9 +107,14 @@ export default function KrediKarti() {
             <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px'}}>
               <div>
                 <h1 style={{fontSize: '36px', fontWeight: 'bold', color: '#111827'}}>{selectedCard.name}</h1>
-                <p style={{fontSize: '18px', color: '#4b5563', marginTop: '8px'}}>{selectedCard.bank} - {selectedCard.code}</p>
+                <p style={{fontSize: '18px', color: '#4b5563', marginTop: '8px'}}>
+                  {selectedCard.bank} - {user?.role === 'superadmin' || user?.role === 'admin' 
+                    ? selectedCard.code 
+                    : '****-****-****-' + selectedCard.code.slice(-4)}
+                </p>
               </div>
               <div style={{display: 'flex', gap: '12px'}}>
+                {canEdit && (
                 <button
                   onClick={() => setShowNewPayment(true)}
                   style={{padding: '12px 24px', background: '#16a34a', color: 'white', borderRadius: '8px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px'}}
@@ -116,6 +124,7 @@ export default function KrediKarti() {
                   </svg>
                   Yeni Ödeme
                 </button>
+                )}
                 <button
                   onClick={() => setSelectedCard(null)}
                   style={{padding: '12px 24px', background: '#2563eb', color: 'white', borderRadius: '8px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px'}}
@@ -132,6 +141,7 @@ export default function KrediKarti() {
               card={selectedCard}
               onBack={() => setSelectedCard(null)}
               onReload={loadCards}
+              canEdit={canEdit}
             />
           </div>
         </div>

@@ -55,7 +55,7 @@ const CurrencyInput = ({ value, onChange, required }) => {
   );
 };
 
-export default function CardDetail({ card, onBack, onReload }) {
+export default function CardDetail({ card, onBack, onReload, canEdit = true }) {
   const [cardPayments, setCardPayments] = useState([]);
   const [editingPayment, setEditingPayment] = useState(null);
   const [filterText, setFilterText] = useState('');
@@ -79,7 +79,17 @@ export default function CardDetail({ card, onBack, onReload }) {
 
   const handleDeletePayment = async (paymentId) => {
     if (confirm('Bu ödeme kaydını silmek istediğinize emin misiniz?')) {
+      const paymentToDelete = cardPayments.find(p => p.id === paymentId);
+      
       await firestore.deleteDocument('payments', paymentId);
+      
+      // Log kaydı
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (user && paymentToDelete) {
+        const logDetails = `Kart: ${card.code} | ${paymentToDelete.payment_type === 'kredi_karti' ? 'Borç' : 'Alacak'} | Tarih: ${paymentToDelete.payment_date} | Tutar: ${paymentToDelete.amount.toLocaleString('tr-TR')} ₺`;
+        await firestore.addLog(user.username, 'Kart Ödemesi Silindi', logDetails);
+      }
+      
       loadPayments();
       onReload();
     }
@@ -98,6 +108,14 @@ export default function CardDetail({ card, onBack, onReload }) {
     }
     
     await firestore.updatePayment(paymentId, updates);
+    
+    // Log kaydı
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user) {
+      const logDetails = `Kart: ${card.code} | ${payment?.payment_type === 'kredi_karti' ? 'Borç' : 'Alacak'} | Tarih: ${newDate || payment.payment_date} | Tutar: ${parseFloat(cleanAmount).toLocaleString('tr-TR')} ₺`;
+      await firestore.addLog(user.username, 'Kart Ödemesi Düzenlendi', logDetails);
+    }
+    
     setEditingPayment(null);
     loadPayments();
     onReload();
@@ -120,6 +138,13 @@ export default function CardDetail({ card, onBack, onReload }) {
       cari_id: null,
       category_id: null
     });
+    
+    // Log kaydı
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user) {
+      const logDetails = `Kart: ${card.code} | Devir | Tarih: ${devirData.date} | Tutar: ${parseFloat(devirData.amount).toLocaleString('tr-TR')} ₺`;
+      await firestore.addLog(user.username, 'Devir Eklendi', logDetails);
+    }
 
     setShowDevirModal(false);
     setDevirData({ amount: '', date: new Date().toISOString().split('T')[0] });
@@ -276,16 +301,18 @@ export default function CardDetail({ card, onBack, onReload }) {
           </div>
           <p style={{fontSize: '24px', color: 'white', fontWeight: 600, marginBottom: '8px'}}>Henüz ödeme kaydı yok</p>
           <p style={{fontSize: '16px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '24px'}}>Bu kart için ilk ödemeyi ekleyin</p>
+          {canEdit && (
           <button
             onClick={() => setShowDevirModal(true)}
             style={{padding: '12px 24px', background: 'white', color: '#667eea', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '16px'}}
           >
             Devir Ekle
           </button>
+          )}
         </div>
       ) : (
         <>
-          {!hasDevir && (
+          {!hasDevir && canEdit && (
             <div style={{marginBottom: '16px', padding: '12px 16px', background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
               <span style={{color: '#92400e', fontWeight: 500}}>Bu kart için devir kaydı bulunmuyor</span>
               <button
@@ -303,7 +330,7 @@ export default function CardDetail({ card, onBack, onReload }) {
             <div style={{textAlign: 'right'}}>Borç</div>
             <div style={{textAlign: 'right'}}>Alacak</div>
             <div style={{textAlign: 'right'}}>Bakiye</div>
-            <div style={{textAlign: 'center'}}>İşlem</div>
+            {canEdit && <div style={{textAlign: 'center'}}>İşlem</div>}
           </div>
           {filteredPayments.map((payment, index) => {
             const balance = calculateBalance(filteredPayments, index);
@@ -312,7 +339,7 @@ export default function CardDetail({ card, onBack, onReload }) {
             const isEditing = editingPayment === payment.id;
             
             return (
-              <div key={payment.id} style={{display: 'grid', gridTemplateColumns: '100px 1fr 140px 140px 140px 120px', gap: '16px', padding: '8px 16px', borderBottom: '1px solid #f3f4f6', alignItems: 'center', background: index % 2 === 0 ? '#f3f4f6' : 'white'}}>
+              <div key={payment.id} style={{display: 'grid', gridTemplateColumns: canEdit ? '100px 1fr 140px 140px 140px 120px' : '100px 1fr 140px 140px 140px', gap: '16px', padding: '8px 16px', borderBottom: '1px solid #f3f4f6', alignItems: 'center', background: index % 2 === 0 ? '#f3f4f6' : 'white'}}>
                 <div style={{fontSize: '13px', color: '#374151', fontWeight: 500}}>
                   {new Date(payment.payment_date).toLocaleDateString('tr-TR')}
                 </div>
@@ -338,7 +365,7 @@ export default function CardDetail({ card, onBack, onReload }) {
                   )}
                 </div>
                 <div style={{fontSize: '14px', textAlign: 'right', fontWeight: 600, color: '#dc2626'}}>
-                  {isDebit ? (
+                  {isDebit && payment.payment_method !== 'devir' ? (
                     isEditing ? (
                       <input
                         type="text"
@@ -352,7 +379,7 @@ export default function CardDetail({ card, onBack, onReload }) {
                   ) : ''}
                 </div>
                 <div style={{fontSize: '14px', textAlign: 'right', fontWeight: 600, color: '#16a34a'}}>
-                  {isCredit ? (
+                  {isCredit || payment.payment_method === 'devir' ? (
                     isEditing ? (
                       <input
                         type="text"
@@ -368,6 +395,7 @@ export default function CardDetail({ card, onBack, onReload }) {
                 <p style={{fontSize: '14px', textAlign: 'right', fontWeight: 700, color: balance < 0 ? '#dc2626' : '#059669'}}>
                   {balance.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺
                 </p>
+                {canEdit && (
                 <div style={{textAlign: 'center'}}>
                   {isEditing ? (
                     <div style={{display: 'flex', gap: '6px', justifyContent: 'center'}}>
@@ -408,6 +436,7 @@ export default function CardDetail({ card, onBack, onReload }) {
                     </div>
                   )}
                 </div>
+                )}
               </div>
             );
           })}

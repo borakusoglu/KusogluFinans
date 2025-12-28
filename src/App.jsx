@@ -60,6 +60,19 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      return false;
+    };
+    
+    document.addEventListener('contextmenu', handleContextMenu);
+    
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+    };
+  }, []);
+
+  useEffect(() => {
     const checkSessionExpiry = () => {
       const savedUser = localStorage.getItem('user');
       if (savedUser) {

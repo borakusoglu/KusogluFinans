@@ -1,16 +1,77 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import DuzenleOdeme from './DuzenleOdeme';
 import * as firestore from '../firebase/firestore';
 
-export default function OdemeListesi({ selectedDate, payments, onClose }) {
+export default function OdemeListesi({ selectedDate, payments: initialPayments, onClose, canEdit = true }) {
   const [editingPayment, setEditingPayment] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState(null);
+  const [payments, setPayments] = useState(initialPayments);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      loadPayments();
+    };
+    window.addEventListener('reminderUpdated', handleUpdate);
+    return () => window.removeEventListener('reminderUpdated', handleUpdate);
+  }, [selectedDate]);
+
+  const loadPayments = async () => {
+    const allPayments = await firestore.getPayments({});
+    const dayPayments = allPayments.filter(p => {
+      if (p.payment_method === 'devir') return false;
+      const compareDate = p.payment_method === 'cek' && p.due_date ? p.due_date : p.payment_date;
+      return new Date(compareDate).toDateString() === selectedDate.toDateString();
+    });
+    const checkIssueDates = allPayments.filter(p => 
+      p.payment_method === 'cek' && 
+      p.payment_date && 
+      new Date(p.payment_date).toDateString() === selectedDate.toDateString()
+    );
+    setPayments([...dayPayments, ...checkIssueDates]);
+  };
 
   const handleDelete = async (id) => {
-    if (confirm('Bu ödemeyi silmek istediğinize emin misiniz?')) {
-      await firestore.deletePayment(id);
-      onClose();
+    setPaymentToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!paymentToDelete) return;
+    
+    const payment = payments.find(p => p.id === paymentToDelete);
+    await firestore.deletePayment(paymentToDelete);
+      
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user && payment) {
+      let logDetails = '';
+      
+      if (payment.payment_type === 'kredi_karti') {
+        logDetails = `Kredi Kartı: ${payment.credit_card_code || '?'} | Hesap: ${payment.bank_account_name || '?'} | Tarih: ${payment.payment_date} | Tutar: ${payment.amount.toLocaleString('tr-TR')} ₺`;
+      } else if (payment.payment_type === 'cari') {
+        const paymentMethodText = payment.payment_method === 'nakit' ? 'Nakit' :
+                                  payment.payment_method === 'dbs' ? 'DBS' :
+                                  payment.payment_method === 'havale' ? 'Havale' :
+                                  payment.payment_method === 'kredi_karti' ? 'Kredi Kartı' :
+                                  payment.payment_method === 'cek' ? 'Çek' : '?';
+        
+        if (payment.payment_method === 'cek') {
+          logDetails = `Cari: ${payment.cari_name || '?'} | Ödeme: Çek | Kesim: ${payment.payment_date} | Vade: ${payment.due_date} | Tutar: ${payment.amount.toLocaleString('tr-TR')} ₺`;
+        } else if (payment.payment_method === 'kredi_karti') {
+          logDetails = `Cari: ${payment.cari_name || '?'} | Ödeme: Kredi Kartı (${payment.credit_card_code || '?'}) | Tarih: ${payment.payment_date} | Tutar: ${payment.amount.toLocaleString('tr-TR')} ₺`;
+        } else {
+          logDetails = `Cari: ${payment.cari_name || '?'} | Ödeme: ${paymentMethodText} | Tarih: ${payment.payment_date} | Tutar: ${payment.amount.toLocaleString('tr-TR')} ₺`;
+        }
+      } else {
+        logDetails = `Serbest Ödeme | Tarih: ${payment.payment_date} | Tutar: ${payment.amount.toLocaleString('tr-TR')} ₺ | Açıklama: ${payment.description || '-'}`;
+      }
+      await firestore.addLog(user.username, 'Ödeme Silindi', logDetails);
     }
+    
+    setShowDeleteConfirm(false);
+    setPaymentToDelete(null);
+    loadPayments();
   };
 
   if (editingPayment) {
@@ -19,7 +80,7 @@ export default function OdemeListesi({ selectedDate, payments, onClose }) {
         payment={editingPayment}
         onClose={() => {
           setEditingPayment(null);
-          onClose();
+          loadPayments();
         }}
         onCancel={() => setEditingPayment(null)}
       />
@@ -27,6 +88,29 @@ export default function OdemeListesi({ selectedDate, payments, onClose }) {
   }
 
   return (
+    <>
+    {showDeleteConfirm && (
+      <div style={{position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100}}>
+        <div style={{backgroundColor: 'white', borderRadius: '12px', padding: '24px', maxWidth: '400px', width: '90%'}}>
+          <h3 style={{fontSize: '18px', fontWeight: 600, color: '#1f2937', marginBottom: '12px'}}>Ödemeyi Sil</h3>
+          <p style={{color: '#6b7280', fontSize: '14px', marginBottom: '20px'}}>Bu ödemeyi silmek istediğinize emin misiniz?</p>
+          <div style={{display: 'flex', gap: '12px', justifyContent: 'flex-end'}}>
+            <button
+              onClick={() => { setShowDeleteConfirm(false); setPaymentToDelete(null); }}
+              style={{padding: '8px 16px', borderRadius: '8px', border: '1px solid #e5e7eb', background: 'white', color: '#374151', fontWeight: 500, cursor: 'pointer'}}
+            >
+              İptal
+            </button>
+            <button
+              onClick={confirmDelete}
+              style={{padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 500, cursor: 'pointer'}}
+            >
+              Sil
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div 
       style={{position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, background: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(8px)'}}
       onClick={onClose}
@@ -49,27 +133,43 @@ export default function OdemeListesi({ selectedDate, payments, onClose }) {
           </div>
 
           <div style={{flex: 1, overflowY: 'auto'}}>
-            <div style={{display: 'grid', gridTemplateColumns: payments.some(p => p.payment_method === 'cek') ? '50px 100px 180px 130px 1fr 100px 100px' : '50px 100px 210px 1fr 100px 100px', gap: '8px', padding: '12px 16px', background: '#1e5a7d', color: 'white', fontWeight: 600, fontSize: '14px', position: 'sticky', top: 0}}>
+            <div style={{display: 'grid', gridTemplateColumns: payments.some(p => p.payment_method === 'cek') ? (canEdit ? '50px 100px 180px 130px 1fr 100px 100px' : '50px 100px 180px 130px 1fr 100px') : (canEdit ? '50px 100px 210px 1fr 100px 100px' : '50px 100px 210px 1fr 100px'), gap: '8px', padding: '12px 16px', background: '#1e5a7d', color: 'white', fontWeight: 600, fontSize: '14px', position: 'sticky', top: 0}}>
               <div>#</div>
               <div>Ödeme Türü</div>
               <div>Kredi Kartı / Cari</div>
               {payments.some(p => p.payment_method === 'cek') && <div>Çek Tarihleri</div>}
               <div>Açıklama</div>
               <div style={{textAlign: 'right'}}>Tutar</div>
-              <div style={{textAlign: 'center'}}>İşlem</div>
+              {canEdit && <div style={{textAlign: 'center'}}>İşlem</div>}
             </div>
-            {payments.map((payment, index) => (
-              <div key={payment.id} style={{display: 'grid', gridTemplateColumns: payments.some(p => p.payment_method === 'cek') ? '50px 100px 180px 130px 1fr 100px 100px' : '50px 100px 210px 1fr 100px 100px', gap: '8px', padding: '12px 16px', borderBottom: '1px solid #e5e7eb', alignItems: 'center', background: index % 2 === 0 ? '#f3f4f6' : 'white'}}>
+            {payments.map((payment, index) => {
+              const isCheckIssueDate = payment.payment_method === 'cek' && 
+                                       payment.payment_date && 
+                                       new Date(payment.payment_date).toDateString() === selectedDate.toDateString();
+              const isCheckDueDate = payment.payment_method === 'cek' && 
+                                     payment.due_date && 
+                                     new Date(payment.due_date).toDateString() === selectedDate.toDateString();
+              
+              return (
+              <div key={payment.id} style={{display: 'grid', gridTemplateColumns: payments.some(p => p.payment_method === 'cek') ? (canEdit ? '50px 100px 180px 130px 1fr 100px 100px' : '50px 100px 180px 130px 1fr 100px') : (canEdit ? '50px 100px 210px 1fr 100px 100px' : '50px 100px 210px 1fr 100px'), gap: '8px', padding: '12px 16px', borderBottom: '1px solid #e5e7eb', alignItems: 'center', background: index % 2 === 0 ? '#f3f4f6' : 'white'}}>
                 <div style={{fontSize: '14px', fontWeight: 600, color: '#374151'}}>
                   {index + 1}
                 </div>
                 <div style={{fontSize: '13px', color: '#374151', fontWeight: 600}}>
-                  {payment.payment_type === 'kredi_karti' ? 'Kredi Kartı' : 'Cari'}
+                  {payment.payment_type === 'kredi_karti' ? 'Kredi Kartı' : isCheckIssueDate && !isCheckDueDate ? 'Çek Kesiliş' : 'Cari'}
                 </div>
                 <div style={{fontSize: '13px', color: '#111827'}}>
                   {payment.payment_type === 'kredi_karti' ? (
                     <div>
-                      <div style={{fontWeight: 600, fontSize: '13px', marginBottom: '2px'}}>{payment.credit_card_code || payment.credit_card_name}</div>
+                      <div style={{fontWeight: 600, fontSize: '13px', marginBottom: '2px'}}>
+                        {(() => {
+                          const user = JSON.parse(localStorage.getItem('user'));
+                          const code = payment.credit_card_code || payment.credit_card_name;
+                          if (!code) return code;
+                          if (user?.role === 'superadmin' || user?.role === 'admin') return code;
+                          return '****-****-****-' + code.slice(-4);
+                        })()}
+                      </div>
                       <div style={{fontSize: '11px', color: '#6b7280'}}>{payment.bank_account_name}</div>
                     </div>
                   ) : (
@@ -77,7 +177,12 @@ export default function OdemeListesi({ selectedDate, payments, onClose }) {
                       <div style={{fontWeight: 600, fontSize: '13px', marginBottom: '2px'}}>{payment.cari_name}</div>
                       <div style={{fontSize: '11px', color: '#6b7280'}}>
                         {payment.payment_method?.toUpperCase()}
-                        {payment.payment_method === 'kredi_karti' && payment.credit_card_code && ` - ${payment.credit_card_code}`}
+                        {payment.payment_method === 'kredi_karti' && payment.credit_card_code && (() => {
+                          const user = JSON.parse(localStorage.getItem('user'));
+                          const code = payment.credit_card_code;
+                          if (user?.role === 'superadmin' || user?.role === 'admin') return ` - ${code}`;
+                          return ` - ****-****-****-${code.slice(-4)}`;
+                        })()}
                       </div>
                     </div>
                   )}
@@ -96,26 +201,35 @@ export default function OdemeListesi({ selectedDate, payments, onClose }) {
                   {payment.payment_method === 'cek' ? '-' : (payment.description || '-')}
                 </div>
                 <div style={{fontSize: '14px', textAlign: 'right', fontWeight: 600, color: '#111827'}}>
-                  {payment.amount.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL
+                  {isCheckIssueDate && !isCheckDueDate ? '-' : `${payment.amount.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL`}
                 </div>
+                {canEdit && (
                 <div style={{textAlign: 'center', display: 'flex', gap: '6px', justifyContent: 'center'}}>
-                  <button
-                    onClick={() => setEditingPayment(payment)}
-                    style={{padding: '6px 10px', background: '#3b82f6', color: 'white', borderRadius: '4px', fontSize: '16px', border: 'none', cursor: 'pointer', width: '36px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
-                    title="Düzenle"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    onClick={() => handleDelete(payment.id)}
-                    style={{padding: '6px 10px', background: '#ef4444', color: 'white', borderRadius: '4px', fontSize: '16px', border: 'none', cursor: 'pointer', width: '36px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
-                    title="Sil"
-                  >
-                    ×
-                  </button>
+                  {!isCheckIssueDate || isCheckDueDate ? (
+                    <>
+                      <button
+                        onClick={() => setEditingPayment(payment)}
+                        style={{padding: '6px 10px', background: '#3b82f6', color: 'white', borderRadius: '4px', fontSize: '16px', border: 'none', cursor: 'pointer', width: '36px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                        title="Düzenle"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        onClick={() => handleDelete(payment.id)}
+                        style={{padding: '6px 10px', background: '#ef4444', color: 'white', borderRadius: '4px', fontSize: '16px', border: 'none', cursor: 'pointer', width: '36px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                        title="Sil"
+                      >
+                        ×
+                      </button>
+                    </>
+                  ) : (
+                    <span style={{fontSize: '11px', color: '#7c3aed', fontWeight: 600}}>Kesiliş</span>
+                  )}
                 </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -130,7 +244,16 @@ export default function OdemeListesi({ selectedDate, payments, onClose }) {
           <div style={{background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', borderRadius: '12px', padding: '20px', marginBottom: '16px', boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)'}}>
             <div style={{fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '8px', fontWeight: 500}}>Toplam Ödeme</div>
             <div style={{fontSize: '30px', fontWeight: 700, color: 'white', letterSpacing: '-0.02em'}}>
-              {payments.reduce((sum, p) => sum + p.amount, 0).toLocaleString('tr-TR', {minimumFractionDigits: 2})}
+              {payments.reduce((sum, p) => {
+                const isCheckIssueDate = p.payment_method === 'cek' && 
+                                         p.payment_date && 
+                                         new Date(p.payment_date).toDateString() === selectedDate.toDateString();
+                const isCheckDueDate = p.payment_method === 'cek' && 
+                                       p.due_date && 
+                                       new Date(p.due_date).toDateString() === selectedDate.toDateString();
+                if (isCheckIssueDate && !isCheckDueDate) return sum;
+                return sum + p.amount;
+              }, 0).toLocaleString('tr-TR', {minimumFractionDigits: 2})}
               <span style={{fontSize: '16px', fontWeight: 600, marginLeft: '4px'}}>TL</span>
             </div>
           </div>
@@ -146,18 +269,33 @@ export default function OdemeListesi({ selectedDate, payments, onClose }) {
                 let cariKrediKartiTotal = 0;
                 
                 payments.forEach(payment => {
+                  // Çek kesiliş tarihlerini toplama dahil etme
+                  const isCheckIssueDate = payment.payment_method === 'cek' && 
+                                           payment.payment_date && 
+                                           new Date(payment.payment_date).toDateString() === selectedDate.toDateString();
+                  const isCheckDueDate = payment.payment_method === 'cek' && 
+                                         payment.due_date && 
+                                         new Date(payment.due_date).toDateString() === selectedDate.toDateString();
+                  
+                  if (isCheckIssueDate && !isCheckDueDate) {
+                    return; // Sadece kesiliş tarihiyse toplama dahil etme
+                  }
+                  
                   if (payment.payment_type === 'kredi_karti') {
                     const account = payment.bank_account_name || 'Bilinmeyen Hesap';
                     accountSummary[account] = (accountSummary[account] || 0) + payment.amount;
                   } else if (payment.payment_type === 'cari') {
                     if (payment.payment_method === 'kredi_karti') {
-                      // Cari ödemelerinde kredi kartı ile yapılanlar ayrı tutulacak
                       cariKrediKartiTotal += payment.amount;
                     } else if (payment.payment_method === 'havale') {
-                      // Havale ödemeleri ayrı kategori
                       havaleTotal += payment.amount;
+                    } else if (payment.payment_method === 'cek') {
+                      const account = payment.bank_account_name || 'Bilinmeyen Hesap';
+                      accountSummary[account] = (accountSummary[account] || 0) + payment.amount;
+                    } else if (payment.payment_method === 'dbs') {
+                      const account = payment.bank_account_name || 'Bilinmeyen Hesap';
+                      accountSummary[account] = (accountSummary[account] || 0) + payment.amount;
                     } else {
-                      // Diğer ödeme yöntemleri kasaya
                       kasaTotal += payment.amount;
                     }
                   }
@@ -201,5 +339,6 @@ export default function OdemeListesi({ selectedDate, payments, onClose }) {
         </div>
       </div>
     </div>
+    </>
   );
 }

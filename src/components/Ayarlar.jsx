@@ -21,6 +21,7 @@ export default function Ayarlar({ onClose }) {
   const [userName, setUserName] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -176,7 +177,7 @@ export default function Ayarlar({ onClose }) {
 
       {showDeleteConfirm && (
         <div style={{position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100}}>
-          <div style={{background: 'white', borderRadius: '16px', padding: '24px', width: '400px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'}}>
+          <div style={{background: 'white', borderRadius: '16px', padding: '24px', width: '450px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
               <svg style={{width: '48px', height: '48px', color: '#dc2626'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -186,21 +187,38 @@ export default function Ayarlar({ onClose }) {
                 <p style={{fontSize: '14px', color: '#6b7280', marginTop: '4px'}}>Tüm ödemeler silinecek!</p>
               </div>
             </div>
-            <p style={{fontSize: '13px', color: '#991b1b', marginBottom: '20px', padding: '12px', background: '#fef2f2', borderRadius: '8px'}}>
+            <p style={{fontSize: '13px', color: '#991b1b', marginBottom: '16px', padding: '12px', background: '#fef2f2', borderRadius: '8px'}}>
               Bu işlem geri alınamaz. Tüm ödeme kayıtları kalıcı olarak silinecektir.
             </p>
+            <div style={{marginBottom: '20px'}}>
+              <label style={{display: 'block', fontSize: '14px', fontWeight: 600, color: '#374151', marginBottom: '8px'}}>
+                Onaylamak için <span style={{color: '#dc2626', fontWeight: 'bold'}}>"ödemeleri sil"</span> yazın:
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="ödemeleri sil"
+                style={{width: '100%', padding: '12px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px'}}
+                autoFocus
+              />
+            </div>
             <div style={{display: 'flex', gap: '12px'}}>
               <button
-                onClick={() => setShowDeleteConfirm(false)}
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteConfirmText('');
+                }}
                 style={{flex: 1, padding: '10px 20px', background: '#e5e7eb', color: '#374151', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600}}
               >
                 İptal
               </button>
               <button
                 onClick={handleDeleteAllPayments}
-                style={{flex: 1, padding: '10px 20px', background: '#dc2626', color: 'white', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600}}
+                disabled={deleteConfirmText !== 'ödemeleri sil'}
+                style={{flex: 1, padding: '10px 20px', background: deleteConfirmText === 'ödemeleri sil' ? '#dc2626' : '#9ca3af', color: 'white', borderRadius: '8px', border: 'none', cursor: deleteConfirmText === 'ödemeleri sil' ? 'pointer' : 'not-allowed', fontWeight: 600, opacity: deleteConfirmText === 'ödemeleri sil' ? 1 : 0.6}}
               >
-                Evet, Sil
+                Sil
               </button>
             </div>
           </div>

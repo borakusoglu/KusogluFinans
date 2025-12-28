@@ -25,22 +25,34 @@ export default function Istatistikler() {
     const end = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
     const payments = await firestore.getPayments({ startDate: start, endDate: end });
 
-    const total = payments.reduce((sum, p) => sum + p.amount, 0);
-    const count = payments.length;
+    const user = JSON.parse(localStorage.getItem('user'));
+    const isAdmin = user?.role === 'superadmin' || user?.role === 'admin';
+    const allPayments = isAdmin ? payments : payments.filter(p => !p.is_admin_only);
+
+    // Çekler için vade tarihini kullan
+    const filteredPayments = allPayments.filter(p => {
+      if (p.payment_method === 'cek' && p.due_date) {
+        return p.due_date >= start && p.due_date <= end;
+      }
+      return p.payment_date >= start && p.payment_date <= end;
+    });
+
+    const total = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+    const count = filteredPayments.length;
     const avg = count > 0 ? total / count : 0;
 
-    const byType = payments.reduce((acc, p) => {
+    const byType = filteredPayments.reduce((acc, p) => {
       acc[p.payment_type] = (acc[p.payment_type] || 0) + p.amount;
       return acc;
     }, {});
 
-    const byMethod = payments.reduce((acc, p) => {
+    const byMethod = filteredPayments.reduce((acc, p) => {
       const method = p.payment_method || 'Diğer';
       acc[method] = (acc[method] || 0) + p.amount;
       return acc;
     }, {});
 
-    const cariPayments = payments.filter(p => p.payment_type === 'cari' && p.cari_name);
+    const cariPayments = filteredPayments.filter(p => p.payment_type === 'cari' && p.cari_name);
     const cariGroups = cariPayments.reduce((acc, p) => {
       if (!acc[p.cari_name]) {
         acc[p.cari_name] = { name: p.cari_name, total: 0, count: 0 };
@@ -51,7 +63,7 @@ export default function Istatistikler() {
     }, {});
     const topCari = Object.values(cariGroups).sort((a, b) => b.total - a.total).slice(0, 5);
 
-    const checks = payments.filter(p => p.payment_method === 'cek');
+    const checks = filteredPayments.filter(p => p.payment_method === 'cek');
     const checkStats = {
       total: checks.reduce((sum, p) => sum + p.amount, 0),
       count: checks.length
@@ -63,7 +75,14 @@ export default function Istatistikler() {
       const monthStart = format(startOfMonth(monthDate), 'yyyy-MM-dd');
       const monthEnd = format(endOfMonth(monthDate), 'yyyy-MM-dd');
       const monthPayments = await firestore.getPayments({ startDate: monthStart, endDate: monthEnd });
-      const monthTotal = monthPayments.reduce((sum, p) => sum + p.amount, 0);
+      const monthAll = isAdmin ? monthPayments : monthPayments.filter(p => !p.is_admin_only);
+      const monthFiltered = monthAll.filter(p => {
+        if (p.payment_method === 'cek' && p.due_date) {
+          return p.due_date >= monthStart && p.due_date <= monthEnd;
+        }
+        return p.payment_date >= monthStart && p.payment_date <= monthEnd;
+      });
+      const monthTotal = monthFiltered.reduce((sum, p) => sum + p.amount, 0);
       monthlyComparison.push({
         month: format(monthDate, 'MMM'),
         total: monthTotal

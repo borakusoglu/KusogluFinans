@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Kusoglu Finans 2026",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "identifier": "com.kusoglu.finans",
   "build": {
     "frontendDist": "../dist",
@@ -10,6 +10,7 @@
     "beforeBuildCommand": "npm run build"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Kuşoğlu Finans",
@@ -20,7 +21,16 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": [
+        {
+          "identifier": "main-capability",
+          "windows": ["main"],
+          "permissions": [
+            "dialog:allow-confirm"
+          ]
+        }
+      ]
     }
   },
   "bundle": {

@@ -67,7 +67,7 @@ const CurrencyInput = ({ value, onChange, required }) => {
   );
 };
 
-export default function YeniOdeme({ selectedDate, onClose, preSelectedCard }) {
+export default function YeniOdeme({ selectedDate, onClose, preSelectedCard, preSelectedCari }) {
   const [paymentType, setPaymentType] = useState('kredi_karti');
   const [formData, setFormData] = useState({
     payment_date: format(selectedDate, 'yyyy-MM-dd'),
@@ -76,9 +76,10 @@ export default function YeniOdeme({ selectedDate, onClose, preSelectedCard }) {
     payment_method: '',
     bank_account_id: '',
     credit_card_id: preSelectedCard || '',
-    cari_id: '',
+    cari_id: preSelectedCari || '',
     category_id: '',
-    description: ''
+    description: '',
+    is_admin_only: false
   });
 
   const [cards, setCards] = useState([]);
@@ -117,6 +118,7 @@ export default function YeniOdeme({ selectedDate, onClose, preSelectedCard }) {
     const accountsData = await firestore.getBankAccounts();
     const cariData = await firestore.getCari();
     const categoriesData = await firestore.getCategories();
+    const user = JSON.parse(localStorage.getItem('user'));
     
     console.log('Loaded accounts:', accountsData);
     console.log('Loaded cards:', cardsData);
@@ -131,7 +133,18 @@ export default function YeniOdeme({ selectedDate, onClose, preSelectedCard }) {
     if (preSelectedCard) {
       const selectedCard = cardsData.find(c => c.id === preSelectedCard);
       if (selectedCard) {
-        setCardSearch(`${selectedCard.code} - ${selectedCard.bank || 'Banka Yok'}`);
+        const displayCode = user?.role === 'superadmin' || user?.role === 'admin' 
+          ? selectedCard.code 
+          : '****-****-****-' + selectedCard.code.slice(-4);
+        setCardSearch(`${displayCode} - ${selectedCard.bank || 'Banka Yok'}`);
+      }
+    }
+    
+    if (preSelectedCari) {
+      setPaymentType('cari');
+      const selectedCari = cariData.find(c => c.id === preSelectedCari);
+      if (selectedCari) {
+        setCariSearch(selectedCari.name);
       }
     }
   };
@@ -253,6 +266,39 @@ export default function YeniOdeme({ selectedDate, onClose, preSelectedCard }) {
 
     try {
       await firestore.addPayment(data);
+      
+      // Detaylı log kaydı oluştur
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (user) {
+        let logDetails = '';
+        
+        if (paymentType === 'kredi_karti') {
+          const card = cards.find(c => c.id === formData.credit_card_id);
+          const account = accounts.find(a => a.id === formData.bank_account_id);
+          logDetails = `Kredi Kartı: ${card?.code || '?'} | Hesap: ${account?.name || '?'} | Tarih: ${formData.payment_date} | Tutar: ${parseFloat(formData.amount).toLocaleString('tr-TR')} ₺`;
+        } else if (paymentType === 'cari') {
+          const cari = cariList.find(c => c.id === formData.cari_id);
+          const paymentMethodText = formData.payment_method === 'nakit' ? 'Nakit' :
+                                    formData.payment_method === 'dbs' ? 'DBS' :
+                                    formData.payment_method === 'havale' ? 'Havale' :
+                                    formData.payment_method === 'kredi_karti' ? 'Kredi Kartı' :
+                                    formData.payment_method === 'cek' ? 'Çek' : '?';
+          
+          if (formData.payment_method === 'cek') {
+            logDetails = `Cari: ${cari?.name || '?'} | Ödeme: Çek | Kesim: ${formData.payment_date} | Vade: ${formData.due_date} | Tutar: ${parseFloat(formData.amount).toLocaleString('tr-TR')} ₺`;
+          } else if (formData.payment_method === 'kredi_karti') {
+            const card = cards.find(c => c.id === formData.credit_card_id);
+            logDetails = `Cari: ${cari?.name || '?'} | Ödeme: Kredi Kartı (${card?.code || '?'}) | Tarih: ${formData.payment_date} | Tutar: ${parseFloat(formData.amount).toLocaleString('tr-TR')} ₺`;
+          } else {
+            logDetails = `Cari: ${cari?.name || '?'} | Ödeme: ${paymentMethodText} | Tarih: ${formData.payment_date} | Tutar: ${parseFloat(formData.amount).toLocaleString('tr-TR')} ₺`;
+          }
+        } else {
+          logDetails = `Serbest Ödeme | Tarih: ${formData.payment_date} | Tutar: ${parseFloat(formData.amount).toLocaleString('tr-TR')} ₺ | Açıklama: ${formData.description || '-'}`;
+        }
+        
+        await firestore.addLog(user.username, 'Ödeme Eklendi', logDetails);
+      }
+      
       await updateReminders(data);
       window.dispatchEvent(new Event('reminderUpdated'));
       onClose();
@@ -264,12 +310,13 @@ export default function YeniOdeme({ selectedDate, onClose, preSelectedCard }) {
   const updateReminders = async (payment) => {
     const reminders = await firestore.getReminders();
     const allCards = await firestore.getCreditCards();
+    const allPayments = await firestore.getPayments({});
     const paymentDate = new Date(payment.payment_date);
-    const paymentDay = paymentDate.getDate();
+    const paymentMonth = paymentDate.getMonth();
+    const paymentYear = paymentDate.getFullYear();
     
     console.log('=== UPDATE REMINDERS DEBUG ===');
     console.log('Payment:', payment);
-    console.log('Payment Day:', paymentDay);
     console.log('All Reminders:', reminders);
     
     for (const reminder of reminders) {
@@ -287,17 +334,22 @@ export default function YeniOdeme({ selectedDate, onClose, preSelectedCard }) {
             const dayStart = parseInt(reminder.dayStart);
             const dayEnd = parseInt(reminder.dayEnd);
             
-            // Eğer başlangıç günü bitiş gününden büyükse, ay geçişi var demektir (27-10 gibi)
-            if (dayStart > dayEnd) {
-              // Ödeme günü başlangıçtan büyük veya eşitse VEYA bitişten küçük veya eşitse
-              if (paymentDay >= dayStart || paymentDay <= dayEnd) {
-                shouldUpdate = true;
+            // Bu ay içinde bu kart için belirlenen gün aralığında ödeme var mı kontrol et
+            const hasPaymentInRange = allPayments.some(p => {
+              if (p.payment_type !== 'kredi_karti' || p.credit_card_id !== payment.credit_card_id) return false;
+              const pDate = new Date(p.payment_date);
+              if (pDate.getMonth() !== paymentMonth || pDate.getFullYear() !== paymentYear) return false;
+              const pDay = pDate.getDate();
+              
+              if (dayStart > dayEnd) {
+                return pDay >= dayStart || pDay <= dayEnd;
+              } else {
+                return pDay >= dayStart && pDay <= dayEnd;
               }
-            } else {
-              // Normal durum: aynı ay içinde (5-15 gibi)
-              if (paymentDay >= dayStart && paymentDay <= dayEnd) {
-                shouldUpdate = true;
-              }
+            });
+            
+            if (hasPaymentInRange) {
+              shouldUpdate = true;
             }
           } else {
             shouldUpdate = true;
@@ -311,17 +363,56 @@ export default function YeniOdeme({ selectedDate, onClose, preSelectedCard }) {
             const dayStart = parseInt(reminder.dayStart);
             const dayEnd = parseInt(reminder.dayEnd);
             
-            // Eğer başlangıç günü bitiş gününden büyükse, ay geçişi var demektir (27-10 gibi)
-            if (dayStart > dayEnd) {
-              // Ödeme günü başlangıçtan büyük veya eşitse VEYA bitişten küçük veya eşitse
-              if (paymentDay >= dayStart || paymentDay <= dayEnd) {
-                shouldUpdate = true;
+            // Bu ay içinde bu cari için belirlenen gün aralığında ödeme var mı kontrol et
+            const hasPaymentInRange = allPayments.some(p => {
+              if (p.payment_type !== 'cari' || p.cari_id !== payment.cari_id) return false;
+              if (reminder.paymentType && p.payment_method !== reminder.paymentType) return false;
+              const pDate = new Date(p.payment_date);
+              if (pDate.getMonth() !== paymentMonth || pDate.getFullYear() !== paymentYear) return false;
+              const pDay = pDate.getDate();
+              
+              if (dayStart > dayEnd) {
+                return pDay >= dayStart || pDay <= dayEnd;
+              } else {
+                return pDay >= dayStart && pDay <= dayEnd;
               }
-            } else {
-              // Normal durum: aynı ay içinde (5-15 gibi)
-              if (paymentDay >= dayStart && paymentDay <= dayEnd) {
-                shouldUpdate = true;
+            });
+            
+            if (hasPaymentInRange) {
+              shouldUpdate = true;
+            }
+          } else {
+            shouldUpdate = true;
+          }
+        }
+      }
+      
+      // Cari ödemede kredi kartı ile ödeme yapıldıysa, kredi kartı hatırlatmasını da güncelle
+      if (reminder.type === 'creditCard' && payment.payment_type === 'cari' && payment.payment_method === 'kredi_karti') {
+        const reminderCard = allCards.find(c => c.id === reminder.creditCardId);
+        const paymentCard = allCards.find(c => c.id === payment.credit_card_id);
+        
+        if (reminderCard && paymentCard && reminderCard.code === paymentCard.code) {
+          if (reminder.dayStart && reminder.dayEnd) {
+            const dayStart = parseInt(reminder.dayStart);
+            const dayEnd = parseInt(reminder.dayEnd);
+            
+            // Bu ay içinde bu kart için belirlenen gün aralığında ödeme var mı kontrol et
+            const hasPaymentInRange = allPayments.some(p => {
+              if (p.payment_method !== 'kredi_karti' || p.credit_card_id !== payment.credit_card_id) return false;
+              const pDate = new Date(p.payment_date);
+              if (pDate.getMonth() !== paymentMonth || pDate.getFullYear() !== paymentYear) return false;
+              const pDay = pDate.getDate();
+              
+              if (dayStart > dayEnd) {
+                return pDay >= dayStart || pDay <= dayEnd;
+              } else {
+                return pDay >= dayStart && pDay <= dayEnd;
               }
+            });
+            
+            if (hasPaymentInRange) {
+              shouldUpdate = true;
             }
           } else {
             shouldUpdate = true;
@@ -520,27 +611,34 @@ export default function YeniOdeme({ selectedDate, onClose, preSelectedCard }) {
                   </button>
                   {showCardDropdown && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {cards
-                        .filter(card => 
-                          card.is_active !== false &&
-                          (card.code.toLowerCase().includes(cardSearch.toLowerCase()) ||
-                          (card.bank || '').toLowerCase().includes(cardSearch.toLowerCase()))
-                        )
-                        .map(card => (
-                          <div
-                            key={card.id}
-                            onClick={() => {
-                              setFormData({ ...formData, credit_card_id: card.id });
-                              setCardSearch(`${card.code} - ${card.bank || 'Banka Yok'}`);
-                              setShowCardDropdown(false);
-                            }}
-                            className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
-                          >
-                            <div className="font-mono text-sm">{card.code}</div>
-                            <div className="text-xs text-gray-600">{card.bank || 'Banka Yok'}</div>
-                          </div>
-                        ))
-                      }
+                      {(() => {
+                        const user = JSON.parse(localStorage.getItem('user'));
+                        return cards
+                          .filter(card => 
+                            card.is_active !== false &&
+                            (card.code.toLowerCase().includes(cardSearch.toLowerCase()) ||
+                            (card.bank || '').toLowerCase().includes(cardSearch.toLowerCase()))
+                          )
+                          .map(card => {
+                            const displayCode = user?.role === 'superadmin' || user?.role === 'admin' 
+                              ? card.code 
+                              : '****-****-****-' + card.code.slice(-4);
+                            return (
+                              <div
+                                key={card.id}
+                                onClick={() => {
+                                  setFormData({ ...formData, credit_card_id: card.id });
+                                  setCardSearch(`${displayCode} - ${card.bank || 'Banka Yok'}`);
+                                  setShowCardDropdown(false);
+                                }}
+                                className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
+                              >
+                                <div className="font-mono text-sm">{displayCode}</div>
+                                <div className="text-xs text-gray-600">{card.bank || 'Banka Yok'}</div>
+                              </div>
+                            );
+                          });
+                      })()}
                     </div>
                   )}
                 </div>
@@ -760,27 +858,34 @@ export default function YeniOdeme({ selectedDate, onClose, preSelectedCard }) {
                     </button>
                     {showCardDropdown && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {cards
-                          .filter(card => 
-                            card.is_active !== false &&
-                            (card.code.toLowerCase().includes(cardSearch.toLowerCase()) ||
-                            (card.bank || '').toLowerCase().includes(cardSearch.toLowerCase()))
-                          )
-                          .map(card => (
-                            <div
-                              key={card.id}
-                              onClick={() => {
-                                setFormData({ ...formData, credit_card_id: card.id });
-                                setCardSearch(`${card.code} - ${card.bank || 'Banka Yok'}`);
-                                setShowCardDropdown(false);
-                              }}
-                              className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
-                            >
-                              <div className="font-mono text-sm">{card.code}</div>
-                              <div className="text-xs text-gray-600">{card.bank || 'Banka Yok'}</div>
-                            </div>
-                          ))
-                        }
+                        {(() => {
+                          const user = JSON.parse(localStorage.getItem('user'));
+                          return cards
+                            .filter(card => 
+                              card.is_active !== false &&
+                              (card.code.toLowerCase().includes(cardSearch.toLowerCase()) ||
+                              (card.bank || '').toLowerCase().includes(cardSearch.toLowerCase()))
+                            )
+                            .map(card => {
+                              const displayCode = user?.role === 'superadmin' || user?.role === 'admin' 
+                                ? card.code 
+                                : '****-****-****-' + card.code.slice(-4);
+                              return (
+                                <div
+                                  key={card.id}
+                                  onClick={() => {
+                                    setFormData({ ...formData, credit_card_id: card.id });
+                                    setCardSearch(`${displayCode} - ${card.bank || 'Banka Yok'}`);
+                                    setShowCardDropdown(false);
+                                  }}
+                                  className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
+                                >
+                                  <div className="font-mono text-sm">{displayCode}</div>
+                                  <div className="text-xs text-gray-600">{card.bank || 'Banka Yok'}</div>
+                                </div>
+                              );
+                            });
+                        })()}
                       </div>
                     )}
                   </div>
@@ -974,6 +1079,24 @@ export default function YeniOdeme({ selectedDate, onClose, preSelectedCard }) {
               {error}
             </div>
           )}
+
+          {(() => {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user?.role === 'superadmin' || user?.role === 'admin') {
+              return (
+                <label style={{display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: '#fef3c7', border: '2px solid #fbbf24', borderRadius: '8px', cursor: 'pointer'}}>
+                  <input
+                    type="checkbox"
+                    checked={formData.is_admin_only}
+                    onChange={(e) => setFormData({ ...formData, is_admin_only: e.target.checked })}
+                    style={{width: '18px', height: '18px', cursor: 'pointer'}}
+                  />
+                  <span style={{fontSize: '14px', fontWeight: 600, color: '#92400e'}}>Admin Ödeme (Sadece adminler görebilir)</span>
+                </label>
+              );
+            }
+            return null;
+          })()}
 
           <div className="flex gap-4 pt-4 border-t">
             <button

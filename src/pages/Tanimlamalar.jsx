@@ -17,8 +17,12 @@ export default function Tanimlamalar({ user }) {
   const [accounts, setAccounts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [cariList, setCariList] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  const [formData, setFormData] = useState({ code: '', owner_name: '', card_category: '', bank: '', expiry_month: '', expiry_year: '', limit_amount: '', balance: '', current_debt: '', name: '' });
+  const canEdit = user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'editor';
+
+  const [formData, setFormData] = useState({ code: '', owner_name: '', card_category: '', bank: '', expiry_month: '', expiry_year: '', limit_amount: '', balance: '', current_debt: '', name: '', iban: '' });
   const [cardType, setCardType] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [errorModal, setErrorModal] = useState({ show: false, message: '' });
@@ -44,6 +48,17 @@ export default function Tanimlamalar({ user }) {
     return parts.join('-');
   };
 
+  const formatIBAN = (value) => {
+    const cleaned = value.replace(/\D/g, '').slice(0, 24);
+    const parts = cleaned.match(/.{1,4}/g) || [];
+    return 'TR' + parts.join(' ');
+  };
+
+  const handleIBANChange = (e) => {
+    const value = e.target.value.replace(/^TR/i, '');
+    setFormData({ ...formData, iban: formatIBAN(value) });
+  };
+
   const handleCardNumberChange = (e) => {
     const formatted = formatCardNumber(e.target.value);
     setFormData({ ...formData, code: formatted });
@@ -57,8 +72,66 @@ export default function Tanimlamalar({ user }) {
     setCariList(await firestore.getCari());
   };
 
+  const getFilteredData = () => {
+    const term = searchTerm.toLowerCase();
+    let data = [];
+    
+    if (activeTab === 'kredi-karti') {
+      data = cards.filter(item => 
+        String(item.code || '').toLowerCase().includes(term) ||
+        String(item.owner_name || '').toLowerCase().includes(term) ||
+        String(item.bank || '').toLowerCase().includes(term)
+      );
+    } else if (activeTab === 'banka-hesabi') {
+      data = accounts.filter(item => 
+        String(item.code || '').toLowerCase().includes(term) ||
+        String(item.name || '').toLowerCase().includes(term)
+      );
+    } else if (activeTab === 'kategori') {
+      data = categories.filter(item => 
+        String(item.code || '').toLowerCase().includes(term) ||
+        String(item.name || '').toLowerCase().includes(term)
+      );
+    } else if (activeTab === 'cari') {
+      data = cariList.filter(item => 
+        String(item.code || '').toLowerCase().includes(term) ||
+        String(item.name || '').toLowerCase().includes(term)
+      );
+    }
+    
+    if (sortConfig.key) {
+      data.sort((a, b) => {
+        let aVal = a[sortConfig.key];
+        let bVal = b[sortConfig.key];
+        
+        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+        
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    
+    return data;
+  };
+
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const filteredData = getFilteredData();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!canEdit) {
+      setErrorModal({ show: true, message: 'Düzenleme yetkiniz yok!' });
+      return;
+    }
     
     try {
       if (activeTab === 'kredi-karti') {
@@ -78,10 +151,12 @@ export default function Tanimlamalar({ user }) {
         };
         if (editingId) {
           await firestore.updateDocument('creditCards', editingId, data);
+          if (user) {
+            await firestore.addLog(user.username, 'Kredi Kartı Düzenlendi', `Kart: ${formData.code} | Banka: ${formData.bank}`);
+          }
         } else {
           const cardId = await firestore.addCreditCard({ ...data, created_at: new Date().toISOString() });
           
-          // Güncel borç devir kaydı ekle - Her kart için benzersiz devir ID'si
           const debtAmount = parseFloat(formData.current_debt);
           await firestore.addPaymentWithId(`Devir_${cardId}`, {
             payment_date: new Date().toISOString().split('T')[0],
@@ -94,17 +169,32 @@ export default function Tanimlamalar({ user }) {
             cari_id: null,
             category_id: null
           });
+          if (user) {
+            await firestore.addLog(user.username, 'Kredi Kartı Eklendi', `Kart: ${formData.code} | Banka: ${formData.bank} | Limit: ${parseFloat(formData.limit_amount).toLocaleString('tr-TR')} ₺`);
+          }
         }
       } else if (activeTab === 'banka-hesabi') {
+        const ibanNumber = formData.iban.replace(/^TR/i, '');
+        if (ibanNumber.length !== 24) {
+          setErrorModal({ show: true, message: 'IBAN 24 haneli olmalıdır!' });
+          return;
+        }
         const data = { 
           code: formData.code,
           name: formData.name,
+          iban: formData.iban,
           balance: parseFloat(formData.balance || 0)
         };
         if (editingId) {
           await firestore.updateDocument('bankAccounts', editingId, data);
+          if (user) {
+            await firestore.addLog(user.username, 'Banka Hesabı Düzenlendi', `Kod: ${formData.code} | İsim: ${formData.name}`);
+          }
         } else {
           await firestore.addBankAccount(data);
+          if (user) {
+            await firestore.addLog(user.username, 'Banka Hesabı Eklendi', `Kod: ${formData.code} | İsim: ${formData.name}`);
+          }
         }
       } else if (activeTab === 'kategori') {
         const data = {
@@ -113,8 +203,14 @@ export default function Tanimlamalar({ user }) {
         };
         if (editingId) {
           await firestore.updateDocument('categories', editingId, data);
+          if (user) {
+            await firestore.addLog(user.username, 'Kategori Düzenlendi', `Kod: ${formData.code} | İsim: ${formData.name}`);
+          }
         } else {
           await firestore.addCategory(data);
+          if (user) {
+            await firestore.addLog(user.username, 'Kategori Eklendi', `Kod: ${formData.code} | İsim: ${formData.name}`);
+          }
         }
       } else if (activeTab === 'cari') {
         const data = {
@@ -123,8 +219,14 @@ export default function Tanimlamalar({ user }) {
         };
         if (editingId) {
           await firestore.updateDocument('cari', editingId, data);
+          if (user) {
+            await firestore.addLog(user.username, 'Cari Düzenlendi', `Kod: ${formData.code} | İsim: ${formData.name}`);
+          }
         } else {
           await firestore.addCari(data);
+          if (user) {
+            await firestore.addLog(user.username, 'Cari Eklendi', `Kod: ${formData.code} | İsim: ${formData.name}`);
+          }
         }
       }
     } catch (error) {
@@ -132,7 +234,7 @@ export default function Tanimlamalar({ user }) {
       return;
     }
 
-    setFormData({ code: '', owner_name: '', card_category: '', bank: '', expiry_month: '', expiry_year: '', limit_amount: '', balance: '', current_debt: '', name: '' });
+    setFormData({ code: '', owner_name: '', card_category: '', bank: '', expiry_month: '', expiry_year: '', limit_amount: '', balance: '', current_debt: '', name: '', iban: '' });
     setCardType('');
     setEditingId(null);
     loadData();
@@ -159,6 +261,7 @@ export default function Tanimlamalar({ user }) {
       setFormData({
         code: item.code,
         name: item.name,
+        iban: item.iban || '',
         owner_name: '',
         card_category: '',
         bank: '',
@@ -172,6 +275,7 @@ export default function Tanimlamalar({ user }) {
       setFormData({
         code: item.code || '',
         name: item.name,
+        iban: '',
         owner_name: '',
         card_category: '',
         bank: '',
@@ -185,13 +289,39 @@ export default function Tanimlamalar({ user }) {
   };
 
   const handleDelete = async (collection, id) => {
-    if (user?.role !== 'admin') {
-      setErrorModal({ show: true, message: 'Sadece admin silebilir!' });
+    if (user?.role !== 'superadmin' && user?.role !== 'admin' && user?.role !== 'editor') {
+      setErrorModal({ show: true, message: 'Silme yetkiniz yok!' });
       return;
     }
     
     if (confirm('Silmek istediğinize emin misiniz?')) {
+      let itemToDelete = null;
+      if (collection === 'creditCards') itemToDelete = cards.find(c => c.id === id);
+      else if (collection === 'bankAccounts') itemToDelete = accounts.find(a => a.id === id);
+      else if (collection === 'categories') itemToDelete = categories.find(c => c.id === id);
+      else if (collection === 'cari') itemToDelete = cariList.find(c => c.id === id);
+      
       await firestore.deleteDocument(collection, id);
+      
+      if (user && itemToDelete) {
+        let logAction = '';
+        let logDetails = '';
+        if (collection === 'creditCards') {
+          logAction = 'Kredi Kartı Silindi';
+          logDetails = `Kart: ${itemToDelete.code} | Banka: ${itemToDelete.bank || '?'}`;
+        } else if (collection === 'bankAccounts') {
+          logAction = 'Banka Hesabı Silindi';
+          logDetails = `Kod: ${itemToDelete.code} | İsim: ${itemToDelete.name}`;
+        } else if (collection === 'categories') {
+          logAction = 'Kategori Silindi';
+          logDetails = `Kod: ${itemToDelete.code || '-'} | İsim: ${itemToDelete.name}`;
+        } else if (collection === 'cari') {
+          logAction = 'Cari Silindi';
+          logDetails = `Kod: ${itemToDelete.code || '-'} | İsim: ${itemToDelete.name}`;
+        }
+        await firestore.addLog(user.username, logAction, logDetails);
+      }
+      
       loadData();
     }
   };
@@ -217,6 +347,7 @@ export default function Tanimlamalar({ user }) {
             code: row['Kod'] || row['kod'] || '',
             name: row['İsim'] || row['isim'] || row['Ad'] || row['ad'] || ''
           };
+          if (!itemData.code && !itemData.name) continue;
           identifier = itemData.code;
           const existing = cariList.find(c => c.code === identifier);
           if (existing) conflicts.push({ existing, new: itemData, type: 'cari' });
@@ -225,6 +356,7 @@ export default function Tanimlamalar({ user }) {
             code: row['Kod'] || row['kod'] || '',
             name: row['İsim'] || row['isim'] || row['Ad'] || row['ad'] || ''
           };
+          if (!itemData.code && !itemData.name) continue;
           identifier = itemData.code;
           const existing = categories.find(c => c.code === identifier);
           if (existing) conflicts.push({ existing, new: itemData, type: 'kategori' });
@@ -232,8 +364,10 @@ export default function Tanimlamalar({ user }) {
           itemData = {
             code: row['Kod'] || row['kod'] || '',
             name: row['İsim'] || row['isim'] || row['Ad'] || row['ad'] || '',
+            iban: row['IBAN'] || row['iban'] || '',
             balance: parseFloat(row['Bakiye'] || row['bakiye'] || 0)
           };
+          if (!itemData.code && !itemData.name) continue;
           identifier = itemData.code;
           const existing = accounts.find(a => a.code === identifier);
           if (existing) conflicts.push({ existing, new: itemData, type: 'banka-hesabi' });
@@ -402,6 +536,7 @@ export default function Tanimlamalar({ user }) {
       data = accounts.map(item => ({
         'Kod': item.code,
         'İsim': item.name,
+        'IBAN': item.iban || '',
         'Bakiye': item.balance
       }));
       filename = 'banka-hesaplari.xlsx';
@@ -614,7 +749,7 @@ export default function Tanimlamalar({ user }) {
           </div>
         </div>
       )}
-      <div style={{maxWidth: '800px', margin: '0 auto'}}>
+      <div style={{maxWidth: '1000px', margin: '0 auto'}}>
         <div style={{background: 'white', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', padding: '24px'}}>
         <div className="flex space-x-4 mb-6 border-b">
           <button
@@ -655,7 +790,10 @@ export default function Tanimlamalar({ user }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mb-6 space-y-4">
+        <div style={{display: 'grid', gridTemplateColumns: '40% 60%', gap: '24px'}}>
+          {canEdit && (
+          <div>
+            <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex gap-2 mb-4">
             <input
               ref={fileInputRef}
@@ -830,15 +968,29 @@ export default function Tanimlamalar({ user }) {
             </div>
           )}
           {activeTab === 'banka-hesabi' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bakiye</label>
-              <input
-                type="number"
-                value={formData.balance}
-                onChange={(e) => setFormData({ ...formData, balance: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">IBAN</label>
+                <input
+                  type="text"
+                  value={formData.iban}
+                  onChange={handleIBANChange}
+                  placeholder="TR + 24 haneli numara"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">TR ile başlayan 26 karakterli IBAN numaranızı girin</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bakiye</label>
+                <input
+                  type="number"
+                  value={formData.balance}
+                  onChange={(e) => setFormData({ ...formData, balance: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+            </>
           )}
           <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             {editingId ? 'Güncelle' : 'Kaydet'}
@@ -848,7 +1000,7 @@ export default function Tanimlamalar({ user }) {
               type="button" 
               onClick={() => {
                 setEditingId(null);
-                setFormData({ code: '', owner_name: '', card_category: '', bank: '', expiry_month: '', expiry_year: '', limit_amount: '', balance: '', current_debt: '', name: '' });
+                setFormData({ code: '', owner_name: '', card_category: '', bank: '', expiry_month: '', expiry_year: '', limit_amount: '', balance: '', current_debt: '', name: '', iban: '' });
                 setCardType('');
               }}
               className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
@@ -858,42 +1010,118 @@ export default function Tanimlamalar({ user }) {
           )}
         </form>
 
-        <div className="overflow-x-auto">
+          </div>
+          )}
+
+          <div style={{gridColumn: canEdit ? 'auto' : '1 / -1'}}>
+            <div className="mb-4">
+              <div className="relative" style={{maxWidth: '450px'}}>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Ara..."
+                  className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+
+            <div className="mb-3 text-sm text-gray-600">
+              {filteredData.length} kayıt görüntüleniyor
+            </div>
+
+            <div className="overflow-x-auto" style={{maxHeight: '400px', overflowY: 'auto'}}>
           <table className="w-full min-w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-2 text-left text-xs font-semibold">{activeTab === 'kredi-karti' ? 'Kart Numarası' : 'Kod'}</th>
-                {activeTab !== 'kredi-karti' && <th className="px-3 py-2 text-left text-xs font-semibold">İsim</th>}
-                {activeTab === 'kredi-karti' && <th className="px-3 py-2 text-left text-xs font-semibold">Kullanıcı</th>}
-                {activeTab === 'kredi-karti' && <th className="px-3 py-2 text-left text-xs font-semibold">Tür</th>}
-                {activeTab === 'kredi-karti' && <th className="px-3 py-2 text-left text-xs font-semibold">Banka</th>}
-                {activeTab === 'kredi-karti' && <th className="px-3 py-2 text-left text-xs font-semibold">Kart Tipi</th>}
+                <th onClick={() => handleSort('code')} className="px-3 py-2 text-left text-xs font-semibold cursor-pointer hover:bg-gray-100">
+                  <div className="flex items-center gap-1">
+                    {activeTab === 'kredi-karti' ? 'Kart Numarası' : 'Kod'}
+                    {sortConfig.key === 'code' && (
+                      <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
+                </th>
+                {activeTab !== 'kredi-karti' && (
+                  <th onClick={() => handleSort('name')} className="px-3 py-2 text-left text-xs font-semibold cursor-pointer hover:bg-gray-100">
+                    <div className="flex items-center gap-1">
+                      İsim
+                      {sortConfig.key === 'name' && (
+                        <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </th>
+                )}
+                {activeTab === 'banka-hesabi' && (
+                  <th onClick={() => handleSort('iban')} className="px-3 py-2 text-left text-xs font-semibold cursor-pointer hover:bg-gray-100">
+                    <div className="flex items-center gap-1">
+                      IBAN
+                      {sortConfig.key === 'iban' && (
+                        <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </th>
+                )}
+                {activeTab === 'kredi-karti' && (
+                  <th onClick={() => handleSort('owner_name')} className="px-3 py-2 text-left text-xs font-semibold cursor-pointer hover:bg-gray-100">
+                    <div className="flex items-center gap-1">
+                      Kullanıcı
+                      {sortConfig.key === 'owner_name' && (
+                        <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </th>
+                )}
+                {activeTab === 'kredi-karti' && (
+                  <th onClick={() => handleSort('bank')} className="px-3 py-2 text-left text-xs font-semibold cursor-pointer hover:bg-gray-100">
+                    <div className="flex items-center gap-1">
+                      Banka
+                      {sortConfig.key === 'bank' && (
+                        <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </th>
+                )}
                 {activeTab === 'kredi-karti' && <th className="px-3 py-2 text-left text-xs font-semibold">S.K.T</th>}
-                {activeTab === 'kredi-karti' && <th className="px-3 py-2 text-right text-xs font-semibold">Limit</th>}
-                {activeTab === 'banka-hesabi' && <th className="px-3 py-2 text-right text-xs font-semibold">Bakiye</th>}
-                <th className="px-3 py-2 text-right text-xs font-semibold">İşlem</th>
+                {activeTab === 'kredi-karti' && (
+                  <th onClick={() => handleSort('limit_amount')} className="px-3 py-2 text-right text-xs font-semibold cursor-pointer hover:bg-gray-100">
+                    <div className="flex items-center justify-end gap-1">
+                      Limit
+                      {sortConfig.key === 'limit_amount' && (
+                        <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </th>
+                )}
+                {activeTab === 'banka-hesabi' && (
+                  <th onClick={() => handleSort('balance')} className="px-3 py-2 text-right text-xs font-semibold cursor-pointer hover:bg-gray-100">
+                    <div className="flex items-center justify-end gap-1">
+                      Bakiye
+                      {sortConfig.key === 'balance' && (
+                        <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </th>
+                )}
+                {canEdit && <th className="px-3 py-2 text-right text-xs font-semibold">İşlem</th>}
               </tr>
             </thead>
             <tbody>
-              {activeTab === 'kredi-karti' && cards.map(item => (
+              {activeTab === 'kredi-karti' && filteredData.map(item => (
                 <tr key={item.id} className="border-b hover:bg-gray-50">
-                  <td className="px-3 py-2 font-mono text-xs">{item.code}</td>
+                  <td className="px-3 py-2 font-mono text-xs">
+                    {user?.role === 'superadmin' || user?.role === 'admin' 
+                      ? item.code 
+                      : '****-****-****-' + item.code.slice(-4)}
+                  </td>
                   <td className="px-3 py-2 text-sm">{item.owner_name || '-'}</td>
-                  <td className="px-3 py-2">
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${
-                      item.card_category === 'bireysel' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {item.card_category === 'bireysel' ? 'Bireysel' : 'Şirket'}
-                    </span>
-                  </td>
                   <td className="px-3 py-2 text-sm">{item.bank || '-'}</td>
-                  <td className="px-3 py-2">
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800">
-                      {item.card_type || detectCardType(item.code)}
-                    </span>
-                  </td>
                   <td className="px-3 py-2 text-sm">{item.expiry_date || '-'}</td>
                   <td className="px-3 py-2 text-right text-sm">{item.limit_amount.toLocaleString('tr-TR')} ₺</td>
+                  {canEdit && (
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <button
                       onClick={() => handleEdit(item)}
@@ -904,7 +1132,7 @@ export default function Tanimlamalar({ user }) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                    {user?.role === 'admin' && (
+                    {(user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'editor') && (
                       <button
                         onClick={() => handleDelete('creditCards', item.id)}
                         className="px-1.5 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
@@ -916,13 +1144,16 @@ export default function Tanimlamalar({ user }) {
                       </button>
                     )}
                   </td>
+                  )}
                 </tr>
               ))}
-              {activeTab === 'banka-hesabi' && accounts.map(item => (
+              {activeTab === 'banka-hesabi' && filteredData.map(item => (
                 <tr key={item.id} className="border-b hover:bg-gray-50">
                   <td className="px-3 py-2 text-sm">{item.code}</td>
                   <td className="px-3 py-2 text-sm">{item.name}</td>
+                  <td className="px-3 py-2 text-sm font-mono">{item.iban || '-'}</td>
                   <td className="px-3 py-2 text-right text-sm">{item.balance.toLocaleString('tr-TR')} ₺</td>
+                  {canEdit && (
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <button
                       onClick={() => handleEdit(item)}
@@ -933,7 +1164,7 @@ export default function Tanimlamalar({ user }) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                    {user?.role === 'admin' && (
+                    {(user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'editor') && (
                       <button
                         onClick={() => handleDelete('bankAccounts', item.id)}
                         className="px-1.5 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
@@ -945,12 +1176,14 @@ export default function Tanimlamalar({ user }) {
                       </button>
                     )}
                   </td>
+                  )}
                 </tr>
               ))}
-              {activeTab === 'kategori' && categories.map(item => (
+              {activeTab === 'kategori' && filteredData.map(item => (
                 <tr key={item.id} className="border-b hover:bg-gray-50">
                   <td className="px-3 py-2 text-sm">{item.code}</td>
                   <td className="px-3 py-2 text-sm">{item.name}</td>
+                  {canEdit && (
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <button
                       onClick={() => handleEdit(item)}
@@ -961,7 +1194,7 @@ export default function Tanimlamalar({ user }) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                    {user?.role === 'admin' && (
+                    {(user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'editor') && (
                       <button
                         onClick={() => handleDelete('categories', item.id)}
                         className="px-1.5 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
@@ -973,12 +1206,14 @@ export default function Tanimlamalar({ user }) {
                       </button>
                     )}
                   </td>
+                  )}
                 </tr>
               ))}
-              {activeTab === 'cari' && cariList.map(item => (
+              {activeTab === 'cari' && filteredData.map(item => (
                 <tr key={item.id} className="border-b hover:bg-gray-50">
                   <td className="px-3 py-2 text-sm">{item.code || '-'}</td>
                   <td className="px-3 py-2 text-sm">{item.name}</td>
+                  {canEdit && (
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <button
                       onClick={() => handleEdit(item)}
@@ -989,7 +1224,7 @@ export default function Tanimlamalar({ user }) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                    {user?.role === 'admin' && (
+                    {(user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'editor') && (
                       <button
                         onClick={() => handleDelete('cari', item.id)}
                         className="px-1.5 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
@@ -1001,10 +1236,13 @@ export default function Tanimlamalar({ user }) {
                       </button>
                     )}
                   </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
+            </div>
+          </div>
         </div>
         </div>
       </div>
