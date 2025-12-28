@@ -6,3 +6,5 @@ private.key
 build-signed.bat
 *.log
 .DS_Store
+src/
+src-tauri/src/
