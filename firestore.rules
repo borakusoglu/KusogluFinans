@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users koleksiyonu
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if true;
+    }
+    
+    // Sessions koleksiyonu - authentication olmadan erişim
+    match /sessions/{sessionId} {
+      allow read, write: if true;
+    }
+    
+    // UserSettings koleksiyonu
+    match /userSettings/{settingId} {
+      allow read, write: if true;
+    }
+    
+    // Logs koleksiyonu
+    match /logs/{logId} {
+      allow read, create: if true;
+      allow update, delete: if false;
+    }
+    
+    // Messages koleksiyonu - Kullanıcı bazlı deletedBy ve starredBy desteği
+    match /messages/{messageId} {
+      allow read, write: if true;
+    }
+    
+    // Payments koleksiyonu
+    match /payments/{paymentId} {
+      allow read, write: if true;
+    }
+    
+    // Reminders koleksiyonu
+    match /reminders/{reminderId} {
+      allow read, write: if true;
+    }
+    
+    // ReminderLogs koleksiyonu
+    match /reminderLogs/{logId} {
+      allow read, write: if true;
+    }
+    
+    // BankAccounts koleksiyonu
+    match /bankAccounts/{accountId} {
+      allow read, write: if true;
+    }
+    
+    // Cari koleksiyonu
+    match /cari/{cariId} {
+      allow read, write: if true;
+    }
+    
+    // Categories koleksiyonu
+    match /categories/{categoryId} {
+      allow read, write: if true;
+    }
+    
+    // CreditCards koleksiyonu
+    match /creditCards/{cardId} {
+      allow read, write: if true;
+    }
+    
+    // DataBundle koleksiyonu
+    match /dataBundle/{docId} {
+      allow read, write: if true;
+    }
+    
+    // ChangeLog koleksiyonu
+    match /changeLog/{logId} {
+      allow read, write: if true;
+    }
+    
+    // SyncSignals koleksiyonu
+    match /syncSignals/{signalId} {
+      allow read, write: if true;
+    }
+  }
+}
