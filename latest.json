@@ -1,11 +1,11 @@
 {
-  "version": "1.1.5",
-  "notes": "Version 1.1.5 - Ana menüde drag-drop sistemi, kartları sütunlar arasında taşıma özelliği",
-  "pub_date": "2026-01-05T12:00:00Z",
+  "version": "1.1.6",
+  "notes": "Version 1.1.6 - Çek kesim tarihi ikonu eklendi, ödeme durumu göstergeleri (ödenmiş/ödenmemiş), banka hesapları birleştirildi, hatırlatmalar ikonu eklendi",
+  "pub_date": "2026-01-06T12:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeHZ1SmFMa25NNUg0OE5ObHpTVGFKRjliVElaWEM0UGxFU1doYXNEMis1WkhBdklUaUlrY2NGWlpRYUlvZWM5Ny95WVhqUmwvQVhSN1dhZ0kxNVJyMlEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY3NjM4MDk1CWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjEuNV94NjQtc2V0dXAuZXhlCkpSZjMwOVM0LytweVE4Q3k3clpaTVRZVEdVRDBMM0ptcDZQMTluMnduM081UGtzdkdzbDdlMUNMc2NyT2NEMFg5U3Z4dUx4WktVWjJaeWVpWXRhdEJ3PT0K",
-      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.1.5/Kusoglu.Finans.2026_1.1.5_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeHZuMEYxeUI4eUkxYXNwVXdRbk9RQllSUFRaUXplN2JHaktObnBIU0p5dXl6K0FCUzUrQTRrY2MyVmlIYzZjbllab2pXOUFieUU3aTd2NVQyd1JJWkFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY2ODQ3NjkyCWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjAuNV94NjQtc2V0dXAuZXhlCktCT2V4Nzd1UEdDRmp3U0hYNHQ0eGFsYU5EN3prMEhUMWVMaE5LaHhkVXBibVhoVE9aT1Vsa3hyaGE2cjNwODhERTh6OTZnU3Z5TEhnL3FON1hBTkFRPT0K",
+      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.1.6/Kusoglu.Finans.2026_1.1.6_x64-setup.exe"
     }
   }
 }
