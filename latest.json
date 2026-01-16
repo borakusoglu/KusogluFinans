@@ -1,11 +1,11 @@
 {
-  "version": "1.1.6",
-  "notes": "Version 1.1.6 - Çek kesim tarihi ikonu eklendi, ödeme durumu göstergeleri (ödenmiş/ödenmemiş), banka hesapları birleştirildi, hatırlatmalar ikonu eklendi",
-  "pub_date": "2026-01-06T12:30:00Z",
+  "version": "1.1.7",
+  "notes": "Version 1.1.7 - Online kullanıcı takibi eklendi, son görülme zamanı gösterimi, Realtime Database entegrasyonu",
+  "pub_date": "2026-01-16T22:30:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeHI4UDd0eDR5cXVsWi9sNXNMQlFTcWVNYzlrZjJzeHR0YzhsTmxBemxZRW8wRzZCbkxDaDVnRTQwdVJUeGZnZE5FYU9EODNXblN2SG5Lb21adndyS1FvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY3NjU0MTIzCWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjEuNl94NjQtc2V0dXAuZXhlCjh4UkpQNTBsUHJldUUyd0FLZXI3VFc4SzkvaDZmRklmZ2RUKzQvM20zeXNTejExV0dzQ0RpZzVwRkxxNVorbkJWV3RncFAxb0I1Zm9nQnd6M001L0JRPT0K",
-      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.1.6/Kusoglu.Finans.2026_1.1.6_x64-setup.exe"
+      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.1.7/Kusoglu.Finans.2026_1.1.7_x64-setup.exe"
     }
   }
 }
