@@ -1,11 +1,11 @@
 {
-  "version": "1.1.7",
-  "notes": "Version 1.1.7 - Online kullanıcı takibi eklendi, son görülme zamanı gösterimi, Realtime Database entegrasyonu",
-  "pub_date": "2026-01-16T23:00:00Z",
+  "version": "1.1.8",
+  "notes": "Version 1.1.8 - Hatırlatma detay modalında ödeme özeti, hatırlatmalardan yapılan ödemelerin takibi, ödeme kartlarında kullanıcı adı ve tarih-saat, Admin Dashboard'da Online Kullanıcılar sekmesi, kredi kartı hatırlatmalarında yapılan ödeme tutarı, Türkiye saat dilimi desteği",
+  "pub_date": "2026-01-20T21:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeHNhckRjT2dzYmczUEZjMTRlRlJRZ2oxOGN1VFFRUGVLMnR2Qy9xbmo0dS85a3J4MWgzdGRoM29OSVVHUXZWN3pRdWRXbkpVaVNKcjQ4dTdENzNoMmdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY4NjAyODIxCWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjEuN194NjQtc2V0dXAuZXhlCmtWaGxXNm9WMVlPY05oQXUzVHZGSzhJWW4xbENISXE5Q3gzTExpZEpsS2pjQ1NSRURmeEp6ZDQ3K3gzamRRTHkyc2I2UTE0ZEZjbHg2eWVFUFVoMEF3PT0K",
-      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.1.7/Kusoglu.Finans.2026_1.1.7_x64-setup.exe"
+      "signature": "BUILD_SONRASI_EKLENECEK",
+      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.1.8/Kusoglu.Finans.2026_1.1.8_x64-setup.exe"
     }
   }
 }
