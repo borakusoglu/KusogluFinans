@@ -8,7 +8,7 @@ export default function VersionChecker() {
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
 
-  const [downloaded, setDownloaded] = useState(false);
+  const [downloadError, setDownloadError] = useState(null);
 
   useEffect(() => {
     checkForUpdates();
@@ -40,8 +40,11 @@ export default function VersionChecker() {
     
     try {
       setDownloading(true);
+      setDownloadError(null);
+      console.log('[Updater] İndirme başlatılıyor...', updateInfo);
       
       await updateInfo.downloadAndInstall((event) => {
+        console.log('[Updater] Event:', event);
         switch (event.event) {
           case 'Started':
             setDownloadProgress(0);
@@ -53,15 +56,18 @@ export default function VersionChecker() {
             break;
           case 'Finished':
             setDownloadProgress(100);
-            setDownloaded(true);
             break;
         }
       });
       
+      console.log('[Updater] İndirme tamamlandı, relaunch...');
       await relaunch();
     } catch (error) {
-      console.log('Güncelleme indirme hatası:', error);
-      if (!downloaded) setDownloading(false);
+      console.error('[Updater] Hata:', error);
+      setDownloadError(String(error));
+      setDownloading(false);
+    }
+  };
     }
   };
 
@@ -103,6 +109,12 @@ export default function VersionChecker() {
             <li>Arama özelliği sadece kullanıcılar ve loglar sekmelerinde aktif</li>
           </ul>
         </div>
+
+        {downloadError && (
+          <div style={{marginBottom: '16px', padding: '12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px'}}>
+            <p style={{color: '#dc2626', fontSize: '12px', margin: 0, wordBreak: 'break-all'}}>❌ Hata: {downloadError}</p>
+          </div>
+        )}
 
         {downloading && (
           <div style={{marginBottom: '24px'}}>
