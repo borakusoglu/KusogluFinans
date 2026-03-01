@@ -4,9 +4,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import { logoutUser } from './firebase/auth';
 import { getHardwareId } from './utils/hwid';
-import onlineStatus from './utils/onlineStatus';
 import { startAllListeners } from './firebase/firestore';
-import transferManager from './utils/transferManager';
 import './index.css';
 
 function App() {
@@ -38,12 +36,14 @@ function App() {
         console.log('🔥 Firestore realtime listeners başlatılıyor...');
         
         // Online durumunu ayarla
+        const onlineStatus = (await import('./utils/onlineStatus')).default;
         await onlineStatus.setOnline(user.uid, user.username);
         
         // Firestore koleksiyonları için realtime listener
         const stopCollectionListeners = startAllListeners();
         
         // Otomatik backup (her gece 00:00)
+        const transferManager = (await import('./utils/transferManager')).default;
         transferManager.startAutoDailyBackup();
         
         return () => {
@@ -64,9 +64,11 @@ function App() {
           
           const unlisten = await appWindow.onCloseRequested(async (event) => {
             // Offline yap
+            const onlineStatus = (await import('./utils/onlineStatus')).default;
             await onlineStatus.setOffline();
             
             // Cache kaydet
+            const transferManager = (await import('./utils/transferManager')).default;
             await transferManager.exportData(true);
             await appWindow.close();
           });
