@@ -1,7 +1,7 @@
 {
-  "version": "1.1.8",
-  "notes": "Version 1.1.8 - Hatırlatma detay modalında ödeme özeti, uyarılarında ödeme özeti, hatırlatmalardan yapılan ödemelerin takibi, ödeme kartlarında kullanıcı adı ve tarih-saat, Admin Dashboard'da Online Kullanıcılar sekmesi, kredi kartı hatırlatmalarında yapılan ödeme tutarı, Türkiye saat dilimi desteği",
-  "pub_date": "2026-01-20T21:00:00Z",
+  "version": "1.1.9",
+  "notes": "Version 1.1.9 - Genel iyileştirmeler ve hata düzeltmeleri",
+  "pub_date": "2026-01-20T21:30:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeGp2WUlOY3lxdjh4SEc3eW56QWF2N3pTbFFNZExxZTdKK3dZOVNhbERxZk5CVWFLK1FsQXNYbE1zYjJQbVdnWFl3Umo5V2lUUUJEWm1TaHZiQnNlK3dRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY4OTM0MTg2CWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjEuOF94NjQtc2V0dXAuZXhlCmFJRmsvYWZ0YU1seFB0ejRHNy9EcDFEQTlCTXBIOWVmQm01SE03UFE4UkFTOW8zSFpvRHlRWEYzVjdNTkNqV0JINjZnVTV5TlY5NkFhNlFPYmxTdUJ3PT0K",
