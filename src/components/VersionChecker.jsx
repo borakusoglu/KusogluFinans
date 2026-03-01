@@ -7,16 +7,11 @@ export default function VersionChecker() {
   const [updateInfo, setUpdateInfo] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
-
   const [downloadError, setDownloadError] = useState(null);
 
   useEffect(() => {
     checkForUpdates();
   }, []);
-
-  const forceCheck = () => {
-    checkForUpdates();
-  };
 
   const checkForUpdates = async () => {
     try {
@@ -66,8 +61,6 @@ export default function VersionChecker() {
       console.error('[Updater] Hata:', error);
       setDownloadError(String(error));
       setDownloading(false);
-    }
-  };
     }
   };
 
