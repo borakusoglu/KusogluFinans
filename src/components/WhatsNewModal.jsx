@@ -40,32 +40,40 @@ export default function WhatsNewModal() {
         <div style={{padding: '24px', maxHeight: '450px', overflowY: 'auto'}}>
           <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
             <div style={{display: 'flex', gap: '12px', alignItems: 'start'}}>
-              <div style={{width: '40px', height: '40px', background: 'linear-gradient(135deg, #ec4899, #db2777)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+              <div style={{width: '40px', height: '40px', background: 'linear-gradient(135deg, #10b981, #059669)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
                 <svg style={{width: '24px', height: '24px', color: 'white'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
               </div>
               <div style={{flex: 1}}>
-                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Hatırlatma Detayları</h3>
-                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Hatırlatmalara tıklayarak detaylı bilgi görüntüleyin. Ödeme ilerlemesi, kalan tutar ve tüm bilgiler tek ekranda.</p>
+                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Tahsilat Modülü</h3>
+                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Online tahsilat logları artık finans programında. Realtime veri akışı, tarih filtreleme, durum takibi ve işlem iptal özelliği.</p>
               </div>
             </div>
 
-            {isAdmin && (
-              <>
-                <div style={{display: 'flex', gap: '12px', alignItems: 'start'}}>
-                  <div style={{width: '40px', height: '40px', background: 'linear-gradient(135deg, #10b981, #059669)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
-                    <svg style={{width: '24px', height: '24px', color: 'white'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                  </div>
-                  <div style={{flex: 1}}>
-                    <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Online Kullanıcı Takibi</h3>
-                    <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Hangi kullanıcıların aktif olduğunu gerçek zamanlı görün. Son görülme zamanı ve online/offline durumu.</p>
-                  </div>
-                </div>
-              </>
-            )}
+            <div style={{display: 'flex', gap: '12px', alignItems: 'start'}}>
+              <div style={{width: '40px', height: '40px', background: 'linear-gradient(135deg, #f59e0b, #d97706)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+                <svg style={{width: '24px', height: '24px', color: 'white'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <div style={{flex: 1}}>
+                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Güvenlik Güncellemeleri</h3>
+                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Ödeme sistemi güvenlik iyileştirmeleri: API key koruması, CSRF token, rate limiting, SHA-256 veri imzalama ve CSP header'ları.</p>
+              </div>
+            </div>
+
+            <div style={{display: 'flex', gap: '12px', alignItems: 'start'}}>
+              <div style={{width: '40px', height: '40px', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+                <svg style={{width: '24px', height: '24px', color: 'white'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div style={{flex: 1}}>
+                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>PDF Makbuz</h3>
+                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Başarılı ödemeler sonrası PDF makbuz indirme ve yazdırma. Banka logoları kart üzerinde görüntüleniyor.</p>
+              </div>
+            </div>
 
             <div style={{display: 'flex', gap: '12px', alignItems: 'start'}}>
               <div style={{width: '40px', height: '40px', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
@@ -74,20 +82,8 @@ export default function WhatsNewModal() {
                 </svg>
               </div>
               <div style={{flex: 1}}>
-                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Daha Hızlı Performans</h3>
-                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Optimize edilmiş veri senkronizasyonu ile daha hızlı ve akıcı kullanım deneyimi.</p>
-              </div>
-            </div>
-
-            <div style={{display: 'flex', gap: '12px', alignItems: 'start'}}>
-              <div style={{width: '40px', height: '40px', background: 'linear-gradient(135deg, #06b6d4, #0891b2)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
-                <svg style={{width: '24px', height: '24px', color: 'white'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div style={{flex: 1}}>
-                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Hata Düzeltmeleri</h3>
-                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Çeşitli hata düzeltmeleri ve stabilite iyileştirmeleri yapıldı.</p>
+                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Performans ve Düzeltmeler</h3>
+                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Yeni uygulama logosu, duplikat kayıt önleme, mobil ödeme formu iyileştirmeleri ve çeşitli hata düzeltmeleri.</p>
               </div>
             </div>
           </div>

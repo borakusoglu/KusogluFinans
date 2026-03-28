@@ -8,6 +8,7 @@ import AdminDashboard from './AdminDashboard';
 import Mesajlar from './Mesajlar';
 import Hatirlatmalar from './Hatirlatmalar';
 import OnlineUsers from './OnlineUsers';
+import Tahsilat from './Tahsilat';
 import Ayarlar from '../components/Ayarlar';
 import VersionChecker from '../components/VersionChecker';
 import ReminderWidget from '../components/ReminderWidget';
@@ -214,6 +215,12 @@ export default function Dashboard({ user, setUser }) {
               </svg>
               <span style={{fontWeight: 600, whiteSpace: 'nowrap', fontSize: '14px'}}>Tanımlamalar</span>
             </Link>
+            <Link to="/tahsilat" style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px', color: '#374151', borderRadius: '12px', transition: 'all 0.2s', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', textDecoration: 'none', width: '130px'}}>
+              <svg style={{width: '20px', height: '20px', color: '#10b981', flexShrink: 0}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span style={{fontWeight: 600, whiteSpace: 'nowrap', fontSize: '14px'}}>Tahsilat</span>
+            </Link>
             {(user.role === 'superadmin' || user.role === 'admin') && (
               <Link to="/admin" style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px', color: '#374151', borderRadius: '12px', transition: 'all 0.2s', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', textDecoration: 'none', width: '140px'}}>
                 <svg style={{width: '20px', height: '20px', color: '#dc2626', flexShrink: 0}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -281,6 +288,7 @@ export default function Dashboard({ user, setUser }) {
             <Route path="/istatistikler" element={<Istatistikler />} />
             <Route path="/tanimlamalar" element={<Tanimlamalar user={user} />} />
             <Route path="/hatirlatmalar" element={<Hatirlatmalar user={user} />} />
+            <Route path="/tahsilat" element={<Tahsilat />} />
             <Route path="/admin" element={<AdminDashboard user={user} />} />
             <Route path="/online-users" element={<OnlineUsers />} />
             <Route path="/mesajlar" element={<Mesajlar user={user} />} />

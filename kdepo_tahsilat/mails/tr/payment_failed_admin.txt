@@ -1,0 +1,24 @@
+Başarısız Tahsilat Bildirimi
+============================
+
+Bir tahsilat işlemi başarısız olmuştur. Detaylar aşağıdadır:
+
+HATA DETAYI
+------------
+Hata Kodu: {error_code}
+Hata Mesajı: {error_message}
+
+MÜŞTERİ BİLGİLERİ
+-------------------
+Ad Soyad: {firstname} {lastname}
+Şirket: {company_name}
+
+İŞLEM DETAYLARI
+----------------
+Ödeme Tutarı: {amount}
+İşlem Tarihi: {date}
+
+TAHSİLAT YAPAN
+---------------
+Kullanıcı ID: {collector_user_id}
+Ad Soyad: {collector_name}

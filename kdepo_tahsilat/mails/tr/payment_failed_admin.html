@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Başarısız Tahsilat Bildirimi</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, Helvetica, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4;">
+    <tr>
+      <td align="center" style="padding:20px 0;">
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border-radius:4px; overflow:hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#F44336; padding:24px; text-align:center;">
+              <h1 style="margin:0; color:#ffffff; font-size:22px;">Başarısız Tahsilat Bildirimi</h1>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px 24px;">
+              <p style="margin:0 0 24px; font-size:15px; color:#333333;">
+                Bir tahsilat işlemi başarısız olmuştur. Detaylar aşağıdadır:
+              </p>
+              <!-- Hata Detayı -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFF3F3; border:1px solid #FFCDD2; border-radius:4px; margin-bottom:20px;">
+                <tr>
+                  <td style="padding:16px 20px; border-bottom:1px solid #FFCDD2; width:40%;">
+                    <strong style="color:#C62828;">Hata Kodu:</strong>
+                  </td>
+                  <td style="padding:16px 20px; border-bottom:1px solid #FFCDD2;">
+                    <span style="color:#C62828; font-family:monospace;">{error_code}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <strong style="color:#C62828;">Hata Mesajı:</strong>
+                  </td>
+                  <td style="padding:16px 20px;">
+                    <span style="color:#C62828;">{error_message}</span>
+                  </td>
+                </tr>
+              </table>
+              <!-- Müşteri Bilgileri -->
+              <h3 style="margin:0 0 12px; font-size:14px; color:#555555; text-transform:uppercase; letter-spacing:1px;">
+                Müşteri Bilgileri
+              </h3>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f9f9f9; border-radius:4px; margin-bottom:20px;">
+                <tr>
+                  <td style="padding:12px 20px; border-bottom:1px solid #eeeeee; width:40%;">
+                    <strong style="color:#555555;">Ad Soyad:</strong>
+                  </td>
+                  <td style="padding:12px 20px; border-bottom:1px solid #eeeeee;">
+                    <span style="color:#333333;">{firstname} {lastname}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 20px;">
+                    <strong style="color:#555555;">Şirket:</strong>
+                  </td>
+                  <td style="padding:12px 20px;">
+                    <span style="color:#333333;">{company_name}</span>
+                  </td>
+                </tr>
+              </table>
+              <!-- İşlem Detayları -->
+              <h3 style="margin:0 0 12px; font-size:14px; color:#555555; text-transform:uppercase; letter-spacing:1px;">
+                İşlem Detayları
+              </h3>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f9f9f9; border-radius:4px; margin-bottom:20px;">
+                <tr>
+                  <td style="padding:12px 20px; border-bottom:1px solid #eeeeee; width:40%;">
+                    <strong style="color:#555555;">Ödeme Tutarı:</strong>
+                  </td>
+                  <td style="padding:12px 20px; border-bottom:1px solid #eeeeee;">
+                    <strong style="color:#333333;">{amount}</strong>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 20px;">
+                    <strong style="color:#555555;">İşlem Tarihi:</strong>
+                  </td>
+                  <td style="padding:12px 20px;">
+                    <span style="color:#333333;">{date}</span>
+                  </td>
+                </tr>
+              </table>
+              <!-- Tahsilat Yapan -->
+              <h3 style="margin:0 0 12px; font-size:14px; color:#555555; text-transform:uppercase; letter-spacing:1px;">
+                Tahsilat Yapan
+              </h3>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f9f9f9; border-radius:4px;">
+                <tr>
+                  <td style="padding:12px 20px; border-bottom:1px solid #eeeeee; width:40%;">
+                    <strong style="color:#555555;">Kullanıcı ID:</strong>
+                  </td>
+                  <td style="padding:12px 20px; border-bottom:1px solid #eeeeee;">
+                    <span style="color:#333333;">{collector_user_id}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 20px;">
+                    <strong style="color:#555555;">Ad Soyad:</strong>
+                  </td>
+                  <td style="padding:12px 20px;">
+                    <span style="color:#333333;">{collector_name}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#f0f0f0; padding:16px 24px; text-align:center;">
+              <p style="margin:0; font-size:12px; color:#999999;">
+                &copy; {shop_name} — Tüm hakları saklıdır.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

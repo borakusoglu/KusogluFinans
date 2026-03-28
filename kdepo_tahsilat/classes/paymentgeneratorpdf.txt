@@ -1,0 +1,207 @@
+<?php
+/**
+ * Ödeme makbuzu PDF oluşturucu.
+ * 1) PrestaShop autoload üzerinden TCPDF'i dener
+ * 2) Bilinen yollardan TCPDF'i arar
+ * 3) Hiçbiri yoksa HTML makbuzu .html eki olarak döndürür
+ */
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
+class PaymentPdfGenerator
+{
+    /**
+     * @param array $data Ödeme verileri
+     * @return array|null ['path' => string, 'name' => string, 'mime' => string] veya null
+     */
+    public static function generate(array $data): ?array
+    {
+        $html = self::buildReceiptHtml($data);
+
+        // PrestaShop composer autoload'u yükle (TCPDF dahil)
+        $autoload = _PS_ROOT_DIR_ . '/vendor/autoload.php';
+        if (file_exists($autoload)) {
+            require_once $autoload;
+        }
+
+        // TCPDF zaten yüklü mü?
+        if (class_exists('TCPDF')) {
+            $path = self::generateWithTcpdf($html, $data);
+            if ($path) {
+                return [
+                    'path' => $path,
+                    'name' => 'tahsilat-makbuzu.pdf',
+                    'mime' => 'application/pdf',
+                ];
+            }
+        }
+
+        // Manuel TCPDF yolları
+        $tcpdfPaths = [
+            _PS_TOOL_DIR_ . 'tcpdf/tcpdf.php',
+            _PS_ROOT_DIR_ . '/vendor/tecnickcom/tcpdf/tcpdf.php',
+            _PS_ROOT_DIR_ . '/tools/tcpdf/tcpdf.php',
+        ];
+
+        foreach ($tcpdfPaths as $p) {
+            if (file_exists($p)) {
+                require_once $p;
+                if (class_exists('TCPDF')) {
+                    $path = self::generateWithTcpdf($html, $data);
+                    if ($path) {
+                        return [
+                            'path' => $path,
+                            'name' => 'tahsilat-makbuzu.pdf',
+                            'mime' => 'application/pdf',
+                        ];
+                    }
+                }
+            }
+        }
+
+        // TCPDF hiç bulunamadı — HTML fallback
+        PrestaShopLogger::addLog(
+            'kdepo_tahsilat: TCPDF bulunamadı, HTML makbuzu oluşturuluyor.',
+            2, null, 'Kdepo_Tahsilat'
+        );
+
+        return self::generateHtmlFallback($html, $data);
+    }
+
+    private static function generateWithTcpdf(string $html, array $data): ?string
+    {
+        try {
+            $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+            $pdf->SetCreator('Kuşoğlu Gıda Tahsilat');
+            $pdf->SetAuthor('Kuşoğlu Gıda');
+            $pdf->SetTitle('Tahsilat Makbuzu - ' . ($data['reference_number'] ?? ''));
+            $pdf->SetMargins(20, 15, 20);
+            $pdf->SetAutoPageBreak(true, 15);
+            $pdf->setPrintHeader(false);
+            $pdf->setPrintFooter(false);
+
+            // Türkçe karakter desteği: dejavusans fontu zorunlu
+            $pdf->SetFont('dejavusans', '', 10);
+
+            $pdf->AddPage();
+
+            // Logo ekle (varsa)
+            $logoPath = _PS_MODULE_DIR_ . 'kdepo_tahsilat/views/img/kusoglu-logo.png';
+            if (file_exists($logoPath)) {
+                $pageW = $pdf->getPageWidth();
+                $logoW = 36;
+                $logoX = ($pageW - $logoW) / 2;
+                $pdf->Image($logoPath, $logoX, 15, $logoW, 0, 'PNG');
+                $pdf->Ln(24);
+            }
+
+            $pdf->writeHTML($html, true, false, true, false, '');
+
+            $tmpFile = tempnam(sys_get_temp_dir(), 'kdepo_pdf_') . '.pdf';
+            $pdf->Output($tmpFile, 'F');
+
+            return $tmpFile;
+        } catch (\Exception $e) {
+            PrestaShopLogger::addLog(
+                'kdepo_tahsilat: PDF oluşturma hatası — ' . $e->getMessage(),
+                3, null, 'Kdepo_Tahsilat'
+            );
+            return null;
+        }
+    }
+
+    /**
+     * TCPDF yoksa HTML makbuzu dosya olarak döndürür.
+     */
+    private static function generateHtmlFallback(string $html, array $data): ?array
+    {
+        try {
+            $fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tahsilat Makbuzu</title></head><body>' . $html . '</body></html>';
+            $tmpFile = tempnam(sys_get_temp_dir(), 'kdepo_html_') . '.html';
+            file_put_contents($tmpFile, $fullHtml);
+
+            return [
+                'path' => $tmpFile,
+                'name' => 'tahsilat-makbuzu.html',
+                'mime' => 'text/html',
+            ];
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Makbuz HTML'i oluşturur — modern, sade tasarım.
+     * TCPDF CSS class desteği sınırlı olduğu için tüm stiller inline.
+     */
+    private static function buildReceiptHtml(array $data): string
+    {
+        $isSuccess = ($data['status'] ?? 'success') === 'success';
+        $statusLabel = $isSuccess ? 'BAŞARILI' : 'BAŞARISIZ';
+        $statusColor = $isSuccess ? '#27ae60' : '#e74c3c';
+        $statusBg    = $isSuccess ? '#eafaf1' : '#fdf2f2';
+        $date = $data['date'] ?? date('d.m.Y H:i');
+
+        $e = function ($str) {
+            return htmlspecialchars((string) $str, ENT_QUOTES, 'UTF-8');
+        };
+
+        // ── Başlık: sadece "TAHSİLAT MAKBUZU" (logo TCPDF Image ile ekleniyor) ──
+        $html = '<div style="text-align:center; font-family:dejavusans; font-size:14px; color:#7f8c8d; letter-spacing:3px; margin:0 0 6px;">TAHSİLAT MAKBUZU</div>';
+        $html .= '<div style="border-top:2px solid #e0e0e0; margin:0 0 18px;"></div>';
+
+        // ── Durum kutusu ──
+        $html .= '<div style="text-align:center; padding:10px 0; margin:0 0 20px; font-family:dejavusans; font-weight:bold; font-size:12px; border-radius:6px; background-color:' . $statusBg . '; color:' . $statusColor . '; border:1px solid ' . $statusColor . ';">';
+        $html .= $statusLabel;
+        $html .= '</div>';
+
+        // ── Müşteri bölümü ──
+        $html .= '<div style="font-family:dejavusans; font-size:9px; font-weight:bold; color:#95a5a6; text-transform:uppercase; letter-spacing:2px; margin:0 0 8px;">Müşteri</div>';
+        $html .= '<table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-family:dejavusans; font-size:10px;">';
+        $html .= '<tr><td style="padding:8px 10px; color:#95a5a6; width:35%; border-bottom:1px solid #f0f0f0;">Ad Soyad</td>';
+        $html .= '<td style="padding:8px 10px; color:#2c3e50; border-bottom:1px solid #f0f0f0;">' . $e(($data['firstname'] ?? '') . ' ' . ($data['lastname'] ?? '')) . '</td></tr>';
+        $html .= '<tr><td style="padding:8px 10px; color:#95a5a6; border-bottom:1px solid #f0f0f0;">Şirket</td>';
+        $html .= '<td style="padding:8px 10px; color:#2c3e50; border-bottom:1px solid #f0f0f0;">' . $e($data['company_name'] ?? '') . '</td></tr>';
+        $html .= '<tr><td style="padding:8px 10px; color:#95a5a6; border-bottom:1px solid #f0f0f0;">E-posta</td>';
+        $html .= '<td style="padding:8px 10px; color:#2c3e50; border-bottom:1px solid #f0f0f0;">' . $e($data['email'] ?? '') . '</td></tr>';
+        $html .= '</table>';
+
+        // ── İşlem detayları ──
+        $html .= '<div style="font-family:dejavusans; font-size:9px; font-weight:bold; color:#95a5a6; text-transform:uppercase; letter-spacing:2px; margin:0 0 8px;">İşlem Detayları</div>';
+        $html .= '<table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-family:dejavusans; font-size:10px;">';
+        $html .= '<tr><td style="padding:8px 10px; color:#95a5a6; width:35%; border-bottom:1px solid #f0f0f0;">Tutar</td>';
+        $html .= '<td style="padding:8px 10px; color:#2c3e50; font-size:13px; font-weight:bold; border-bottom:1px solid #f0f0f0;">' . $e($data['amount'] ?? '') . '</td></tr>';
+        $html .= '<tr><td style="padding:8px 10px; color:#95a5a6; border-bottom:1px solid #f0f0f0;">Tarih</td>';
+        $html .= '<td style="padding:8px 10px; color:#2c3e50; border-bottom:1px solid #f0f0f0;">' . $e($date) . '</td></tr>';
+
+        if (!empty($data['reference_number'])) {
+            $html .= '<tr><td style="padding:8px 10px; color:#95a5a6; border-bottom:1px solid #f0f0f0;">Referans No</td>';
+            $html .= '<td style="padding:8px 10px; color:#2c3e50; letter-spacing:1px; border-bottom:1px solid #f0f0f0;">' . $e($data['reference_number']) . '</td></tr>';
+        }
+        if (!empty($data['description'])) {
+            $html .= '<tr><td style="padding:8px 10px; color:#95a5a6; border-bottom:1px solid #f0f0f0;">Açıklama</td>';
+            $html .= '<td style="padding:8px 10px; color:#2c3e50; border-bottom:1px solid #f0f0f0;">' . $e($data['description']) . '</td></tr>';
+        }
+
+        $html .= '</table>';
+
+        // ── Hata detayı (sadece başarısız işlemlerde) ──
+        if (!$isSuccess && (!empty($data['error_code']) || !empty($data['error_message']))) {
+            $html .= '<div style="font-family:dejavusans; font-size:9px; font-weight:bold; color:#c0392b; text-transform:uppercase; letter-spacing:2px; margin:0 0 8px;">Hata Detayı</div>';
+            $html .= '<div style="background-color:#fdf2f2; border:1px solid #f5c6cb; border-radius:4px; padding:10px 14px; margin-bottom:16px; font-family:dejavusans; font-size:10px;">';
+            $html .= '<table style="width:100%; border-collapse:collapse;">';
+            $html .= '<tr><td style="width:35%; color:#c0392b; padding:4px 0;">Kod</td><td style="color:#c0392b; padding:4px 0;">' . $e($data['error_code'] ?? '') . '</td></tr>';
+            $html .= '<tr><td style="color:#c0392b; padding:4px 0;">Mesaj</td><td style="color:#c0392b; padding:4px 0;">' . $e($data['error_message'] ?? '') . '</td></tr>';
+            $html .= '</table></div>';
+        }
+
+        // ── Footer ──
+        $html .= '<div style="text-align:center; margin-top:30px; padding-top:12px; border-top:1px solid #e0e0e0; font-family:dejavusans; font-size:8px; color:#bdc3c7;">';
+        $html .= 'Bu belge otomatik olarak oluşturulmuştur. ' . date('d.m.Y H:i:s');
+        $html .= '</div>';
+
+        return $html;
+    }
+}

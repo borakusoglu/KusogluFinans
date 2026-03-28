@@ -1,0 +1,20 @@
+Başarılı Tahsilat Bildirimi
+===========================
+
+Yeni bir tahsilat işlemi başarıyla tamamlanmıştır.
+
+MÜŞTERİ BİLGİLERİ
+-------------------
+Ad Soyad: {firstname} {lastname}
+Şirket: {company_name}
+
+İŞLEM DETAYLARI
+----------------
+Ödeme Tutarı: {amount}
+İşlem Tarihi: {date}
+Referans Numarası: {reference_number}
+
+TAHSİLAT YAPAN
+---------------
+Kullanıcı ID: {collector_user_id}
+Ad Soyad: {collector_name}

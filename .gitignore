@@ -4,5 +4,8 @@ src-tauri/target/
 .env
 private.key
 build-signed.bat
+kdepo_tahsilat/config/firebase-service-account.json
+kdepo_tahsilat/*.md
+kdepo_tahsilat/**/*.md
 *.log
 .DS_Store

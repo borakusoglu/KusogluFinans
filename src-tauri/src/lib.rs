@@ -147,6 +147,7 @@ pub fn run() {
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_fs::init())
     .invoke_handler(tauri::generate_handler![get_hardware_id, encrypt_data, decrypt_data, get_app_data_path, save_backup_file, read_backup_file, list_backup_files])
     .setup(|app| {

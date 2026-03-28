@@ -1,0 +1,12 @@
+Ödeme Onayı
+===========
+
+Sayın {firstname} {lastname},
+
+Ödemeniz başarıyla gerçekleştirilmiştir. İşlem detayları aşağıdadır:
+
+Ödeme Tutarı: {amount}
+İşlem Tarihi: {date}
+Referans Numarası: {reference_number}
+
+Bu e-posta otomatik olarak gönderilmiştir. Sorularınız için lütfen bizimle iletişime geçin.
