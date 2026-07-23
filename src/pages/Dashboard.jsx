@@ -1,4 +1,4 @@
-import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Ajanda from './Ajanda';
 import KrediKarti from './KrediKarti';
@@ -9,13 +9,14 @@ import Mesajlar from './Mesajlar';
 import Hatirlatmalar from './Hatirlatmalar';
 import OnlineUsers from './OnlineUsers';
 import Tahsilat from './Tahsilat';
+import PlasiyerTahsilatlari from './PlasiyerTahsilatlari';
 import Ayarlar from '../components/Ayarlar';
 import VersionChecker from '../components/VersionChecker';
 import ReminderWidget from '../components/ReminderWidget';
 import WhatsNewModal from '../components/WhatsNewModal';
 import { logoutUser } from '../firebase/auth';
 import * as firestore from '../firebase/firestore';
-import localDB from '../utils/localDB';
+import { runScheduledCollectionPrint } from '../utils/fieldCollectionPrint';
 
 export default function Dashboard({ user, setUser }) {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ export default function Dashboard({ user, setUser }) {
   const [showMessageAlert, setShowMessageAlert] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showReminderWidget, setShowReminderWidget] = useState(false);
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   useEffect(() => {
     checkReminders();
@@ -68,6 +70,46 @@ export default function Dashboard({ user, setUser }) {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+
+    let disposed = false;
+    let printTimeout;
+
+    const runMorningPrint = async () => {
+      try {
+        const result = await runScheduledCollectionPrint(user);
+        if (!disposed && !result.skipped && result.count > 0) {
+          console.log(`07:30 plasiyer tahsilat ciktisi: ${result.groups} plasiyer / ${result.count} kayit`);
+        }
+      } catch (error) {
+        console.error('07:30 plasiyer tahsilat ciktisi alinamadi:', error);
+      }
+    };
+
+    const scheduleNextMorningPrint = () => {
+      const now = new Date();
+      const nextRun = new Date(now);
+      nextRun.setHours(7, 30, 0, 0);
+
+      if (nextRun <= now) {
+        nextRun.setDate(nextRun.getDate() + 1);
+      }
+
+      printTimeout = window.setTimeout(async () => {
+        await runMorningPrint();
+        if (!disposed) scheduleNextMorningPrint();
+      }, nextRun.getTime() - now.getTime());
+    };
+
+    scheduleNextMorningPrint();
+
+    return () => {
+      disposed = true;
+      window.clearTimeout(printTimeout);
+    };
+  }, [isAdmin, user]);
 
   const checkReminders = async () => {
     const reminders = await firestore.getReminders();
@@ -221,7 +263,15 @@ export default function Dashboard({ user, setUser }) {
               </svg>
               <span style={{fontWeight: 600, whiteSpace: 'nowrap', fontSize: '14px'}}>Tahsilat</span>
             </Link>
-            {(user.role === 'superadmin' || user.role === 'admin') && (
+            {isAdmin && (
+              <Link to="/plasiyer-tahsilatlari" style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', color: '#374151', borderRadius: '12px', transition: 'all 0.2s', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', textDecoration: 'none', width: '158px'}}>
+                <svg style={{width: '20px', height: '20px', color: '#7c3aed', flexShrink: 0}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 5.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-.343-.014-.682-.042-1.016z" />
+                </svg>
+                <span style={{fontWeight: 600, whiteSpace: 'nowrap', fontSize: '13px'}}>Plasiyer Tah.</span>
+              </Link>
+            )}
+            {isAdmin && (
               <Link to="/admin" style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px', color: '#374151', borderRadius: '12px', transition: 'all 0.2s', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', textDecoration: 'none', width: '140px'}}>
                 <svg style={{width: '20px', height: '20px', color: '#dc2626', flexShrink: 0}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -289,6 +339,7 @@ export default function Dashboard({ user, setUser }) {
             <Route path="/tanimlamalar" element={<Tanimlamalar user={user} />} />
             <Route path="/hatirlatmalar" element={<Hatirlatmalar user={user} />} />
             <Route path="/tahsilat" element={<Tahsilat />} />
+            <Route path="/plasiyer-tahsilatlari" element={isAdmin ? <PlasiyerTahsilatlari user={user} /> : <Navigate to="/" replace />} />
             <Route path="/admin" element={<AdminDashboard user={user} />} />
             <Route path="/online-users" element={<OnlineUsers />} />
             <Route path="/mesajlar" element={<Mesajlar user={user} />} />

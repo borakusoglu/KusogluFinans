@@ -1,11 +1,11 @@
 {
-  "version": "1.2.0",
-  "notes": "Version 1.2.0 - Tahsilat modulu, guvenlik guncellemeleri, PDF makbuz ve performans iyilestirmeleri",
-  "pub_date": "2026-03-28T18:00:00Z",
+  "version": "1.2.1",
+  "notes": "Version 1.2.1 - Plasiyer tahsilatlari, isme gore filtreleme, planli yazdirma ve admin kontrollu Netsis aktarimi",
+  "pub_date": "2026-07-23T21:05:52Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeHJqU2FzMGQ3VFdleHhyUVRIb3BjR0ZvUlRydkNQcEtHTWVpa05MSHo2TllQNHJuQytJTm5WUTRBcyt3eVlJTmxCbHJ4YXpyN2VDa2xlL2FtampDY2dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NzA4NTAxCWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjIuMF94NjQtc2V0dXAuZXhlCkhlcy9oOGdnczFHZE1vVHo1Mlp5OXhQZldHb1JjTlU4QzV6ZjVYcWRmalBuQ1lsM2pKV3BWUDNQTnVpU1Jlcm1EZExvOFBacGJ6WXJLamorUjhPQkNBPT0K",
-      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.2.0/Kusoglu.Finans.2026_1.2.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeHU4SWtvUkQvYWNwOFk3dS9NQ3JGQVJuc1lOS1VJU2IyeXM3d2crTmJad2VJWXhuVFlRS0Q2TlhmOTYyWVN4dDNWYXpJMUQrSGFXMDF4eFM1NUVQVlE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0ODQwNjA1CWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjIuMV94NjQtc2V0dXAuZXhlCmF6Q2hIQyttY29nSUJrdExodUxWa2R3eUt4WjROUXVSRWE3a1FlRldTSkIyajh1ZExta2pHUk5kdm9BclZzQXRDRnBEcjcxemNBcXowdm5oejF0eEFBPT0K",
+      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.2.1/Kusoglu.Finans.2026_1.2.1_x64-setup.exe"
     }
   }
 }

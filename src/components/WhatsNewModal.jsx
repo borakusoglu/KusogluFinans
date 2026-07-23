@@ -1,19 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { APP_VERSION } from '../config/version';
 
 export default function WhatsNewModal() {
-  const [show, setShow] = useState(false);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('user'));
-    setUser(userData);
-    
-    const lastSeenVersion = localStorage.getItem('lastSeenVersion');
-    if (lastSeenVersion !== APP_VERSION) {
-      setShow(true);
-    }
-  }, []);
+  const [show, setShow] = useState(
+    () => localStorage.getItem('lastSeenVersion') !== APP_VERSION,
+  );
 
   const handleClose = () => {
     localStorage.setItem('lastSeenVersion', APP_VERSION);
@@ -21,8 +12,6 @@ export default function WhatsNewModal() {
   };
 
   if (!show) return null;
-
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   return (
     <div style={{position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999}}>
@@ -46,8 +35,8 @@ export default function WhatsNewModal() {
                 </svg>
               </div>
               <div style={{flex: 1}}>
-                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Tahsilat Modülü</h3>
-                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Online tahsilat logları artık finans programında. Realtime veri akışı, tarih filtreleme, durum takibi ve işlem iptal özelliği.</p>
+                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Plasiyer Tahsilatları</h3>
+                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>K-Depo mobil uygulamasından gelen saha tahsilatları artık finans kuyruğunda. Müşteri, belge, ödeme tipi, tutar ve işlem durumu tek ekrandan takip edilebiliyor.</p>
               </div>
             </div>
 
@@ -58,8 +47,8 @@ export default function WhatsNewModal() {
                 </svg>
               </div>
               <div style={{flex: 1}}>
-                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Güvenlik Güncellemeleri</h3>
-                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Ödeme sistemi güvenlik iyileştirmeleri: API key koruması, CSRF token, rate limiting, SHA-256 veri imzalama ve CSP header'ları.</p>
+                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>İsme Göre Plasiyer Filtresi</h3>
+                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Yeni dropdown menüyle plasiyer adına göre hızlı seçim yapılabiliyor. İsim ve plasiyer kodu birlikte gösteriliyor; arama ve durum filtreleriyle beraber çalışıyor.</p>
               </div>
             </div>
 
@@ -70,8 +59,8 @@ export default function WhatsNewModal() {
                 </svg>
               </div>
               <div style={{flex: 1}}>
-                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>PDF Makbuz</h3>
-                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Başarılı ödemeler sonrası PDF makbuz indirme ve yazdırma. Banka logoları kart üzerinde görüntüleniyor.</p>
+                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Planlı Plasiyer Çıktısı</h3>
+                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Bekleyen tahsilatlar plasiyer bazında raporlanıp saat 07:30'da varsayılan yazıcıya gönderiliyor. Uygulama açılışında yazdırma başlamıyor; manuel çıktı seçeneği de kullanılabiliyor.</p>
               </div>
             </div>
 
@@ -82,8 +71,8 @@ export default function WhatsNewModal() {
                 </svg>
               </div>
               <div style={{flex: 1}}>
-                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Performans ve Düzeltmeler</h3>
-                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Yeni uygulama logosu, duplikat kayıt önleme, mobil ödeme formu iyileştirmeleri ve çeşitli hata düzeltmeleri.</p>
+                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Kontrollü Netsis Aktarımı</h3>
+                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Yazdırılmış tahsilatlar seçilerek Netsis'e aktarılabiliyor. Görüntüleme, düzenleme, silme, yazdırma ve aktarım işlemleri yalnızca admin ve süper admin yetkisine açıldı.</p>
               </div>
             </div>
           </div>

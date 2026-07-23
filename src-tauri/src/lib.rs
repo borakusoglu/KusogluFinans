@@ -7,6 +7,98 @@ use rand::RngCore;
 use std::fs;
 use tauri::Manager;
 
+mod collection_api;
+
+fn load_runtime_env() {
+    let _ = dotenvy::dotenv();
+    let _ = dotenvy::from_path("src-tauri/.env");
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(directory) = exe.parent() {
+            let _ = dotenvy::from_path(directory.join(".env"));
+            let _ = dotenvy::from_path(directory.join("src-tauri").join(".env"));
+        }
+    }
+    // Ayni Windows makinesindeki K-Depo Yonetim uygulamasi mevcutsa ortak
+    // sunucu anahtarlarini yeniden kopyalamadan gelistirme/yukseltme uyumlulugu saglar.
+    if let Ok(user_profile) = std::env::var("USERPROFILE") {
+        let shared_env = std::path::PathBuf::from(user_profile)
+            .join("AndroidStudioProjects")
+            .join("KdepoPersonel")
+            .join("Kdepo-Yonetim")
+            .join("src-tauri")
+            .join(".env");
+        let _ = dotenvy::from_path(shared_env);
+    }
+}
+
+#[tauri::command]
+async fn get_field_collections(status: String) -> Result<serde_json::Value, String> {
+    collection_api::get_collections(&status).await
+}
+
+#[tauri::command]
+async fn update_field_collection(collection: serde_json::Value, edited_by: String) -> Result<serde_json::Value, String> {
+    collection_api::update_collection(&collection, &edited_by).await
+}
+
+#[tauri::command]
+async fn delete_field_collection(id_tahsilat: u32, reason: String, deleted_by: String) -> Result<serde_json::Value, String> {
+    collection_api::delete_collection(id_tahsilat, &reason, &deleted_by).await
+}
+
+#[tauri::command]
+async fn mark_field_collections_printed(ids: Vec<u32>, printed_by: String) -> Result<serde_json::Value, String> {
+    collection_api::mark_printed(&ids, &printed_by).await
+}
+
+#[tauri::command]
+async fn send_field_collection(id_tahsilat: u32, sent_by: String) -> Result<serde_json::Value, String> {
+    collection_api::send_collection(id_tahsilat, &sent_by).await
+}
+
+#[tauri::command]
+async fn print_collection_report(report: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || print_report_blocking(&report))
+        .await
+        .map_err(|error| format!("Yazdirma gorevi tamamlanamadi: {error}"))?
+}
+
+#[cfg(target_os = "windows")]
+fn print_report_blocking(report: &str) -> Result<(), String> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let script = concat!(
+        "$ErrorActionPreference='Stop';",
+        "[Console]::InputEncoding=[System.Text.UTF8Encoding]::new($false);",
+        "$report=[Console]::In.ReadToEnd();",
+        "$report | Out-Printer"
+    );
+    let mut child = Command::new("powershell.exe")
+        .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("Windows yazdirma servisi baslatilamadi: {error}"))?;
+    child.stdin.as_mut()
+        .ok_or_else(|| "Yaziciya rapor verisi aktarilamadi.".to_string())?
+        .write_all(report.as_bytes())
+        .map_err(|error| format!("Rapor yaziciya aktarilamadi: {error}"))?;
+    let output = child.wait_with_output().map_err(|error| format!("Yazdirma sonucu alinamadi: {error}"))?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        let error = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        Err(if error.is_empty() { "Varsayilan yaziciya cikti gonderilemedi.".to_string() } else { error })
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn print_report_blocking(_report: &str) -> Result<(), String> {
+    Err("Otomatik yazdirma yalnizca Windows surumunde destekleniyor.".to_string())
+}
+
 #[tauri::command]
 fn get_hardware_id() -> Result<String, String> {
     // MAC adresini al
@@ -143,13 +235,28 @@ fn decrypt_data(encrypted: String, key: String) -> Result<String, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  load_runtime_env();
   tauri::Builder::default()
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_fs::init())
-    .invoke_handler(tauri::generate_handler![get_hardware_id, encrypt_data, decrypt_data, get_app_data_path, save_backup_file, read_backup_file, list_backup_files])
+    .invoke_handler(tauri::generate_handler![
+      get_hardware_id,
+      encrypt_data,
+      decrypt_data,
+      get_app_data_path,
+      save_backup_file,
+      read_backup_file,
+      list_backup_files,
+      get_field_collections,
+      update_field_collection,
+      delete_field_collection,
+      mark_field_collections_printed,
+      send_field_collection,
+      print_collection_report
+    ])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
