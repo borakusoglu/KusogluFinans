@@ -29,6 +29,18 @@ export default function WhatsNewModal() {
         <div style={{padding: '24px', maxHeight: '450px', overflowY: 'auto'}}>
           <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
             <div style={{display: 'flex', gap: '12px', alignItems: 'start'}}>
+              <div style={{width: '40px', height: '40px', background: 'linear-gradient(135deg, #06b6d4, #0891b2)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+                <svg style={{width: '24px', height: '24px', color: 'white'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01M5.05 13.05a9.9 9.9 0 0113.9 0M1.515 9.515a14.85 14.85 0 0120.97 0" />
+                </svg>
+              </div>
+              <div style={{flex: 1}}>
+                <h3 style={{fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px'}}>Sunucu Bağlantısı Düzeltildi</h3>
+                <p style={{fontSize: '13px', color: '#6b7280', lineHeight: '1.5'}}>Plasiyer Tahsilatları artık bilgisayarda .env veya API anahtarı aramadan doğrudan K-Depo sunucusuna bağlanıyor.</p>
+              </div>
+            </div>
+
+            <div style={{display: 'flex', gap: '12px', alignItems: 'start'}}>
               <div style={{width: '40px', height: '40px', background: 'linear-gradient(135deg, #10b981, #059669)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
                 <svg style={{width: '24px', height: '24px', color: 'white'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />

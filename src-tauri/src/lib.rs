@@ -9,28 +9,6 @@ use tauri::Manager;
 
 mod collection_api;
 
-fn load_runtime_env() {
-    let _ = dotenvy::dotenv();
-    let _ = dotenvy::from_path("src-tauri/.env");
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(directory) = exe.parent() {
-            let _ = dotenvy::from_path(directory.join(".env"));
-            let _ = dotenvy::from_path(directory.join("src-tauri").join(".env"));
-        }
-    }
-    // Ayni Windows makinesindeki K-Depo Yonetim uygulamasi mevcutsa ortak
-    // sunucu anahtarlarini yeniden kopyalamadan gelistirme/yukseltme uyumlulugu saglar.
-    if let Ok(user_profile) = std::env::var("USERPROFILE") {
-        let shared_env = std::path::PathBuf::from(user_profile)
-            .join("AndroidStudioProjects")
-            .join("KdepoPersonel")
-            .join("Kdepo-Yonetim")
-            .join("src-tauri")
-            .join(".env");
-        let _ = dotenvy::from_path(shared_env);
-    }
-}
-
 #[tauri::command]
 async fn get_field_collections(status: String) -> Result<serde_json::Value, String> {
     collection_api::get_collections(&status).await
@@ -235,7 +213,6 @@ fn decrypt_data(encrypted: String, key: String) -> Result<String, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  load_runtime_env();
   tauri::Builder::default()
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())

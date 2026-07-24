@@ -1,11 +1,11 @@
 {
-  "version": "1.2.1",
-  "notes": "Version 1.2.1 - Plasiyer tahsilatlari, isme gore filtreleme, planli yazdirma ve admin kontrollu Netsis aktarimi",
-  "pub_date": "2026-07-23T21:05:52Z",
+  "version": "1.2.2",
+  "notes": "Version 1.2.2 - Plasiyer tahsilatlari icin yerel .env ve API anahtari zorunlulugu kaldirildi; K-Depo sunucu baglantisi duzeltildi.",
+  "pub_date": "2026-07-24T06:53:33Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeHU4SWtvUkQvYWNwOFk3dS9NQ3JGQVJuc1lOS1VJU2IyeXM3d2crTmJad2VJWXhuVFlRS0Q2TlhmOTYyWVN4dDNWYXpJMUQrSGFXMDF4eFM1NUVQVlE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0ODQwNjA1CWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjIuMV94NjQtc2V0dXAuZXhlCmF6Q2hIQyttY29nSUJrdExodUxWa2R3eUt4WjROUXVSRWE3a1FlRldTSkIyajh1ZExta2pHUk5kdm9BclZzQXRDRnBEcjcxemNBcXowdm5oejF0eEFBPT0K",
-      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.2.1/Kusoglu.Finans.2026_1.2.1_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeG5sUmcrR0FrdWIxSEE4QzRXY3ZKTlNaTDUwcHZ3MXhHRmQ0MzZwQmNybWF6Sk5BU1oyNFN6K3F1Nmg3Y1BqbTN6dVJCTDZKaDZ6Z0lhTjYySjNlUmc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0ODc2MDAyCWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjIuMl94NjQtc2V0dXAuZXhlCnUrNHdZeUllRGFqeFlpRUNIenhldXlNSE40RWtVdlRpNlhBc2RXU3h6am9tL29DNWs1bzYxYkNId2pzcUdtUDJONGxaOWMwVUhMZ0ZkdjdUR3dkd0RRPT0K",
+      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.2.2/Kusoglu.Finans.2026_1.2.2_x64-setup.exe"
     }
   }
 }

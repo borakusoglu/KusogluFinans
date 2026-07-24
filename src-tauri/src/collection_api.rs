@@ -3,40 +3,10 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 const DEFAULT_API_URL: &str = "https://k-depo.com/modules/kdeponumbering/api.php";
-
-fn env_first(keys: &[&str]) -> Option<String> {
-    keys.iter().find_map(|key| {
-        std::env::var(key).ok().and_then(|value| {
-            let clean = value.trim().to_string();
-            if clean.is_empty() {
-                None
-            } else {
-                Some(clean)
-            }
-        })
-    })
-}
+const CLIENT_HEADER: &str = "finance-desktop";
 
 fn api_url() -> String {
-    env_first(&["KDEPO_API_URL", "KDEPO_API_BASE_URL"])
-        .unwrap_or_else(|| DEFAULT_API_URL.to_string())
-}
-
-fn ws_key() -> Result<String, String> {
-    env_first(&["KDEPO_WS_KEY", "PRESTASHOP_API_KEY"]).ok_or_else(|| {
-        "KDEPO_WS_KEY eksik. Finans Defteri src-tauri/.env dosyasini yapilandirin.".to_string()
-    })
-}
-
-fn app_key() -> Result<String, String> {
-    env_first(&[
-        "KDEPO_APP_KEY",
-        "KDEPO_MOBILE_APP_KEY",
-        "KDEPO_ADMIN_APP_KEY",
-    ])
-    .ok_or_else(|| {
-        "KDEPO_APP_KEY eksik. Finans Defteri src-tauri/.env dosyasini yapilandirin.".to_string()
-    })
+    DEFAULT_API_URL.to_string()
 }
 
 fn client() -> Result<Client, String> {
@@ -60,16 +30,11 @@ fn parse_response(status: reqwest::StatusCode, text: &str) -> Result<Value, Stri
 }
 
 async fn api_get(action: &str, extra: &[(&str, &str)]) -> Result<Value, String> {
-    let ws_key = ws_key()?;
-    let app_key = app_key()?;
-    let mut params = vec![
-        ("ws_key", ws_key.as_str()),
-        ("app_key", app_key.as_str()),
-        ("action", action),
-    ];
+    let mut params = vec![("action", action)];
     params.extend_from_slice(extra);
     let response = client()?
         .get(api_url())
+        .header("X-Kdepo-Client", CLIENT_HEADER)
         .query(&params)
         .send()
         .await
@@ -83,15 +48,10 @@ async fn api_get(action: &str, extra: &[(&str, &str)]) -> Result<Value, String> 
 }
 
 async fn api_post(action: &str, form: HashMap<String, String>) -> Result<Value, String> {
-    let ws_key = ws_key()?;
-    let app_key = app_key()?;
-    let params = [
-        ("ws_key", ws_key.as_str()),
-        ("app_key", app_key.as_str()),
-        ("action", action),
-    ];
+    let params = [("action", action)];
     let response = client()?
         .post(api_url())
+        .header("X-Kdepo-Client", CLIENT_HEADER)
         .query(&params)
         .form(&form)
         .send()
