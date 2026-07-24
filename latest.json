@@ -1,11 +1,11 @@
 {
-  "version": "1.2.3",
-  "notes": "Version 1.2.3 - Plasiyer tahsilatlarinda tek gun tarih secimi, yazdirma durumu filtresi ve tekrar Netsis aktarimini engelleyen guvenceler eklendi.",
-  "pub_date": "2026-07-24T22:10:45Z",
+  "version": "1.2.4",
+  "notes": "Version 1.2.4 - Firebase yapilandirmasi eksik uretilen 1.2.3 paketi duzeltildi ve eksik ortam degiskenlerinde release build'ini durduran koruma eklendi.",
+  "pub_date": "2026-07-24T22:58:34Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeHN1MFdZVVF0MGRLQzZxaXdCajRzZE5zSXM1d3YvN2xhMzNvbmZSNzZXTzgyU2l0SThKZStWUmtIVGlES2I2aW12OEhUTWJnaHUrR1RIYytaN1RMWFFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0OTMxMDIwCWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjIuM194NjQtc2V0dXAuZXhlCjNiWEF6aVgyTEdBSEJEOFlyZjFqbnFyVUhLeXBFUEJWalpEcklndUpPbVhpSkhBU3RGYnJ3LzZVTGExVkViZXVFNkp2TmNLZzBtbExWdkpaeTIzUEN3PT0K",
-      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.2.3/Kusoglu.Finans.2026_1.2.3_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeGdFendUS293UjdQdGVjcE9RTHluK05KNDFvclEwVFh1UG5xRE1rQndLTkRtWGsrdVN6bGtaMnRCMFRkci9BNjFJYXpHYVNkRXVvNkMwdVI5aW5jcFE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0OTMzNzkxCWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjIuNF94NjQtc2V0dXAuZXhlClY1YVdSRGpJcElyM2I5b2RKSmFKMkZrVzNBaGNBL0RUYXdTaFc0UFl2UlYyVGkyeS9QbDc2VHlGY1hPckwzeXd6UCtuaFFGNHdaM29Tcm9yWEp1Z0NBPT0K",
+      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.2.4/Kusoglu.Finans.2026_1.2.4_x64-setup.exe"
     }
   }
 }
