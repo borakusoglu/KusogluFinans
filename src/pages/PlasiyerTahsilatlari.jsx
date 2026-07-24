@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { printFieldCollections } from '../utils/fieldCollectionPrint';
+
+const SELECTED_DATE_STORAGE_KEY = 'kdepo_field_collection_date';
+const LEGACY_DATE_RANGE_STORAGE_KEY = 'kdepo_field_collection_date_range';
 
 const STATUS = {
   pending: { label: 'Finans Bekliyor', bg: '#fef3c7', color: '#92400e' },
@@ -14,6 +17,29 @@ const fieldStyle = { width: '100%', padding: '9px 11px', border: '1px solid #d1d
 const buttonStyle = { border: 0, borderRadius: '9px', padding: '9px 13px', fontWeight: 700, cursor: 'pointer', fontSize: '12px' };
 
 const money = (value) => Number(value || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+const localDateValue = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const isDateValue = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+const readSelectedDate = () => {
+  const today = localDateValue();
+  try {
+    const saved = JSON.parse(localStorage.getItem(SELECTED_DATE_STORAGE_KEY) || 'null');
+    if (isDateValue(saved)) return saved;
+    const legacyRange = JSON.parse(localStorage.getItem(LEGACY_DATE_RANGE_STORAGE_KEY) || 'null');
+    if (isDateValue(legacyRange?.end)) return legacyRange.end;
+  } catch {
+    // Bozuk/eski kayıt varsa güvenli varsayılana dön.
+  }
+  return today;
+};
+const collectionDateValue = (value) => {
+  const match = String(value || '').match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : '';
+};
 const formatDate = (value) => {
   if (!value) return '-';
   const date = new Date(String(value).replace(' ', 'T'));
@@ -43,15 +69,18 @@ export default function PlasiyerTahsilatlari({ user }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [status, setStatus] = useState('pending');
+  const [printStatus, setPrintStatus] = useState('unprinted');
   const [search, setSearch] = useState('');
   const [salesperson, setSalesperson] = useState('all');
+  const [selectedDate, setSelectedDate] = useState(readSelectedDate);
   const [selected, setSelected] = useState(new Set());
   const [editRow, setEditRow] = useState(null);
   const [deleteRow, setDeleteRow] = useState(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
+  const transferLockRef = useRef(false);
+  const transferredIdsRef = useRef(new Set());
   const actor = user?.username || user?.email || 'finans';
 
   const load = useCallback(async () => {
@@ -66,7 +95,7 @@ export default function PlasiyerTahsilatlari({ user }) {
     setLoading(true);
     setError('');
     try {
-      const response = await invoke('get_field_collections', { status });
+      const response = await invoke('get_field_collections', { status: 'all' });
       setRows(response.collections || []);
       setSelected(new Set());
     } catch (reason) {
@@ -75,7 +104,7 @@ export default function PlasiyerTahsilatlari({ user }) {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, status]);
+  }, [isAdmin]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -87,6 +116,13 @@ export default function PlasiyerTahsilatlari({ user }) {
     const timer = setTimeout(() => setToast(''), 5000);
     return () => clearTimeout(timer);
   }, [toast]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(SELECTED_DATE_STORAGE_KEY, JSON.stringify(selectedDate));
+    } catch {
+      // Depolama kullanılamasa da tarih filtresi oturum boyunca çalışmaya devam eder.
+    }
+  }, [selectedDate]);
 
   const salespersonOptions = useMemo(
     () => Array.from(new Set(rows.map(salespersonName)))
@@ -97,15 +133,22 @@ export default function PlasiyerTahsilatlari({ user }) {
   const filtered = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase('tr-TR');
     return rows.filter((row) => {
+      const rowDate = collectionDateValue(row.created_at);
+      const matchesDate = rowDate === selectedDate;
+      const matchesPrintStatus = printStatus === 'all'
+        || (printStatus === 'printed' ? Boolean(row.printed_at) : !row.printed_at);
       const matchesSalesperson = salesperson === 'all' || salespersonName(row) === salesperson;
       const matchesSearch = !needle
         || [row.document_no, row.customer_name, row.cari_kod, row.plasiyer_kodu, row.app_user_name, row.payment_type_label]
           .some((value) => String(value || '').toLocaleLowerCase('tr-TR').includes(needle));
-      return matchesSalesperson && matchesSearch;
+      return matchesDate && matchesPrintStatus && matchesSalesperson && matchesSearch;
     });
-  }, [rows, search, salesperson]);
+  }, [rows, search, salesperson, selectedDate, printStatus]);
 
-  const actionable = filtered.filter((row) => ['pending', 'failed'].includes(row.status));
+  const actionable = filtered.filter((row) => (
+    ['pending', 'failed'].includes(row.status)
+    && !transferredIdsRef.current.has(Number(row.id_tahsilat))
+  ));
   const selectedRows = filtered.filter((row) => selected.has(row.id_tahsilat));
   const total = filtered.reduce((sum, row) => sum + Number(row.amount || 0), 0);
   const pendingTotal = actionable.reduce((sum, row) => sum + Number(row.amount || 0), 0);
@@ -115,6 +158,11 @@ export default function PlasiyerTahsilatlari({ user }) {
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
+  const changeSelectedDate = (date) => {
+    if (!isDateValue(date)) return;
+    setSelectedDate(date);
+    setSelected(new Set());
+  };
 
   const saveEdit = async () => {
     if (!isAdmin) { setToast('Bu işlem yalnızca admin yetkisiyle yapılabilir.'); return; }
@@ -162,24 +210,44 @@ export default function PlasiyerTahsilatlari({ user }) {
 
   const sendRows = async () => {
     if (!isAdmin) { setToast('Bu işlem yalnızca admin yetkisiyle yapılabilir.'); return; }
-    const targets = selectedRows.filter((row) => ['pending', 'failed'].includes(row.status));
+    if (transferLockRef.current) {
+      setToast("Netsis aktarımı zaten devam ediyor. Aynı kayıtlar tekrar gönderilmedi.");
+      return;
+    }
+    const targets = Array.from(new Map(
+      selectedRows
+        .filter((row) => ['pending', 'failed'].includes(row.status))
+        .filter((row) => !transferredIdsRef.current.has(Number(row.id_tahsilat)))
+        .map((row) => [Number(row.id_tahsilat), row]),
+    ).values());
     if (!targets.length) { setToast('Aktarılacak tahsilatları seçin.'); return; }
     const unprinted = targets.filter((row) => !row.printed_at);
     if (unprinted.length) { setToast(`${unprinted.length} tahsilat yazdırılmadan aktarılamaz.`); return; }
+    transferLockRef.current = true;
     setBusy(true);
     let success = 0;
+    let alreadySent = 0;
     const errors = [];
-    for (const row of targets) {
-      try {
-        await invoke('send_field_collection', { idTahsilat: Number(row.id_tahsilat), sentBy: actor });
-        success += 1;
-      } catch (reason) {
-        errors.push(`${row.document_no}: ${reason}`);
+    try {
+      for (const row of targets) {
+        const idTahsilat = Number(row.id_tahsilat);
+        try {
+          const response = await invoke('send_field_collection', { idTahsilat, sentBy: actor });
+          transferredIdsRef.current.add(idTahsilat);
+          if (response?.already_sent) alreadySent += 1; else success += 1;
+        } catch (reason) {
+          errors.push(`${row.document_no}: ${reason}`);
+        }
       }
+      await load();
+    } finally {
+      transferLockRef.current = false;
+      setBusy(false);
     }
-    setToast(errors.length ? `${success} aktarıldı, ${errors.length} hata. ${errors[0]}` : `${success} tahsilat Netsis'e aktarıldı.`);
-    setBusy(false);
-    await load();
+    const duplicateNote = alreadySent ? ` ${alreadySent} kayıt zaten aktarılmıştı; tekrar gönderilmedi.` : '';
+    setToast(errors.length
+      ? `${success} aktarıldı, ${errors.length} hata.${duplicateNote} ${errors[0]}`
+      : `${success} tahsilat Netsis'e aktarıldı.${duplicateNote}`);
   };
 
   if (!isAdmin) {
@@ -203,17 +271,21 @@ export default function PlasiyerTahsilatlari({ user }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Belge, müşteri, cari veya plasiyer ara..." style={{ ...fieldStyle, width: '310px' }} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#475569', fontSize: '12px', fontWeight: 700 }}>
+          Tarih
+          <input type="date" value={selectedDate} onChange={(event) => changeSelectedDate(event.target.value)} style={{ ...fieldStyle, width: '135px', background: 'white' }} />
+        </label>
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Belge, müşteri, cari veya plasiyer ara..." style={{ ...fieldStyle, width: '260px' }} />
         <select value={salesperson} onChange={(event) => { setSalesperson(event.target.value); setSelected(new Set()); }} style={{ ...fieldStyle, width: '210px', background: 'white' }}>
           <option value="all">Tüm plasiyerler</option>
           {salespersonOptions.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
-        <select value={status} onChange={(event) => { setStatus(event.target.value); setSalesperson('all'); }} style={{ ...fieldStyle, width: '180px', background: 'white' }}>
-          <option value="pending">Finans Bekleyen</option><option value="failed">Hatalı</option><option value="sent">Aktarılan</option><option value="processing">Aktarılıyor</option><option value="deleted">Silinen</option><option value="all">Tümü</option>
+        <select value={printStatus} onChange={(event) => { setPrintStatus(event.target.value); setSalesperson('all'); setSelected(new Set()); }} style={{ ...fieldStyle, width: '180px', background: 'white' }}>
+          <option value="unprinted">Yazdırılmadı</option><option value="printed">Yazdırıldı</option><option value="all">Tümü</option>
         </select>
         <button onClick={load} disabled={busy} style={{ ...buttonStyle, background: '#e2e8f0', color: '#334155' }}>Yenile</button>
         <button onClick={printReport} disabled={busy || !actionable.length} style={{ ...buttonStyle, background: '#7c3aed', color: 'white' }}>Plasiyer Çıktısı</button>
-        <button onClick={sendRows} disabled={busy || !selectedRows.length} style={{ ...buttonStyle, background: '#059669', color: 'white' }}>Seçilenleri Netsis'e Aktar</button>
+        <button onClick={sendRows} disabled={busy || !selectedRows.length} style={{ ...buttonStyle, background: '#059669', color: 'white' }}>{transferLockRef.current ? "Netsis'e Aktarılıyor..." : "Seçilenleri Netsis'e Aktar"}</button>
         <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#64748b' }}>{selected.size} seçili</span>
       </div>
 
@@ -228,7 +300,9 @@ export default function PlasiyerTahsilatlari({ user }) {
                     {['Tarih', 'Durum', 'Plasiyer', 'Belge No', 'Cari / Müşteri', 'Ödeme', 'Tutar', 'Yazdırma', 'İşlem'].map((label) => <th key={label} style={{ padding: '10px 8px', textAlign: label === 'Tutar' ? 'right' : 'left', color: '#475569', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>{label}</th>)}
                   </tr></thead>
                   <tbody>{filtered.map((row) => {
-                    const canEdit = isAdmin && ['pending', 'failed'].includes(row.status);
+                    const canEdit = isAdmin
+                      && ['pending', 'failed'].includes(row.status)
+                      && !transferredIdsRef.current.has(Number(row.id_tahsilat));
                     const statusStyle = STATUS[row.status] || STATUS.pending;
                     return <tr key={row.id_tahsilat} style={{ borderBottom: '1px solid #f1f5f9', background: selected.has(row.id_tahsilat) ? '#f0fdf4' : 'white' }}>
                       <td style={{ padding: '9px 10px' }}><input type="checkbox" disabled={!canEdit} checked={selected.has(row.id_tahsilat)} onChange={() => toggle(row.id_tahsilat)} /></td>
