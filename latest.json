@@ -1,11 +1,11 @@
 {
-  "version": "1.2.4",
-  "notes": "Version 1.2.4 - Firebase yapilandirmasi eksik uretilen 1.2.3 paketi duzeltildi ve eksik ortam degiskenlerinde release build'ini durduran koruma eklendi.",
-  "pub_date": "2026-07-24T22:58:34Z",
+  "version": "1.2.5",
+  "notes": "Version 1.2.5 - Firebase Realtime Database tetikleyicileriyle cihazlar arasi veri yenileme, giris ve kayit akisi iyilestirmeleri ile aktarim guvenilirligi guncellendi.",
+  "pub_date": "2026-07-27T22:02:42Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeGdFendUS293UjdQdGVjcE9RTHluK05KNDFvclEwVFh1UG5xRE1rQndLTkRtWGsrdVN6bGtaMnRCMFRkci9BNjFJYXpHYVNkRXVvNkMwdVI5aW5jcFE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0OTMzNzkxCWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjIuNF94NjQtc2V0dXAuZXhlClY1YVdSRGpJcElyM2I5b2RKSmFKMkZrVzNBaGNBL0RUYXdTaFc0UFl2UlYyVGkyeS9QbDc2VHlGY1hPckwzeXd6UCtuaFFGNHdaM29Tcm9yWEp1Z0NBPT0K",
-      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.2.4/Kusoglu.Finans.2026_1.2.4_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeHFCamo3MGRpVmdUQVJub0FTQXhIQnZVbExyUVJhWjZ0RTZZc0dvcE0wdlE2UkFMSUVFSlhkT2ZnWjZlWWZFVFZ3S2x6RkZhYitLdFhZMEpGWjhCdFF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MTg5NzQ5CWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjIuNV94NjQtc2V0dXAuZXhlCmUrWjRlRjRtQWk3WUhhQ2c3V2lkTWpVR3BnNXNlbzJSS2RsZmswQmNZalIxUUJZSndHbGdnTjJmQ1MwNUZLdmtOT0VtRm9Hc3orY1BMVmlSQkV4WEJRPT0K",
+      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.2.5/Kusoglu.Finans.2026_1.2.5_x64-setup.exe"
     }
   }
 }

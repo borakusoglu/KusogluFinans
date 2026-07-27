@@ -6,6 +6,11 @@ export async function getHardwareId() {
     return hwid;
   } catch (error) {
     console.error('HWID alınamadı:', error);
+    // Vite'ın tarayıcı önizlemesinde Tauri komutları bulunmaz. Yalnızca geliştirme
+    // derlemesinde sabit bir kimlik kullanarak arayüz testi yapılabilmesini sağla.
+    if (import.meta.env.DEV) {
+      return 'DEV-BROWSER-HWID';
+    }
     return null;
   }
 }

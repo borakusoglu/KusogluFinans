@@ -53,7 +53,7 @@ class TransferManager {
           return { success: true, message: 'Veri başarıyla kaydedildi', path: filePath };
         }
         return { success: true, path: filePath };
-      } catch (tauriError) {
+      } catch {
         // Web ortamı - browser download
         const blob = new Blob([encrypted], { type: 'application/octet-stream' });
         const url = URL.createObjectURL(blob);
@@ -154,13 +154,17 @@ class TransferManager {
     try {
       const path = await invoke('get_app_data_path');
       return { success: true, path };
-    } catch (error) {
+    } catch {
       return { success: false, path: null };
     }
   }
 
   // Otomatik günlük cache kaydetme (Her gece 00:00)
   startAutoDailyBackup() {
+    if (this.autoBackupInterval) {
+      clearInterval(this.autoBackupInterval);
+    }
+
     const checkAndBackup = async () => {
       const now = new Date();
       const hour = now.getHours();
@@ -180,8 +184,15 @@ class TransferManager {
     };
 
     // Her dakika kontrol et
-    setInterval(checkAndBackup, 60000);
+    this.autoBackupInterval = setInterval(checkAndBackup, 60000);
     checkAndBackup();
+
+    return () => {
+      if (this.autoBackupInterval) {
+        clearInterval(this.autoBackupInterval);
+        this.autoBackupInterval = null;
+      }
+    };
   }
 
   // Tüm cache dosyalarını oku ve birleştir

@@ -58,3 +58,14 @@ Sunucu baglantisi icin `src-tauri/.env.example` dosyasini `src-tauri/.env`
 olarak kopyalayip gercek `KDEPO_WS_KEY` ve `KDEPO_APP_KEY` degerlerini girin.
 Bu dosya Git'e dahil edilmez. Ayni makinede K-Depo Yonetim kaynak klasoru
 bulunuyorsa mevcut `Kdepo-Yonetim/src-tauri/.env` dosyasi da otomatik okunur.
+
+## Firebase Veri Akisi
+
+Ana finans verileri Firestore'da tutulur. Uygulamalar arasi degisiklik
+tetikleyicileri ise Realtime Database altindaki `dataTriggers` yolunu kullanir.
+Bir tetikleyici geldiginde yalnizca ilgili Firestore koleksiyonu yeniden okunur
+ve yerel cache guncellenir. Boylece Firestore snapshot dinleyicileri acik
+tutulmadan mevcut veri modeli korunur.
+
+Realtime Database kurallari `database.rules.json` dosyasindadir. Firebase
+Console'daki mevcut kurallarla birlestirilip yayinlanmalidir.

@@ -1,6 +1,36 @@
 import { db } from './config';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy, setDoc, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy, setDoc } from 'firebase/firestore';
 import localDB from '../utils/localDB';
+import { listenToDataTriggers, publishDataTrigger } from './realtimeTriggers';
+
+const REALTIME_COLLECTIONS = [
+  'creditCards',
+  'bankAccounts',
+  'categories',
+  'cari',
+  'payments',
+  'reminders',
+  'messages'
+];
+
+const notifyDataChange = (collectionName, action, documentId = null) => {
+  // Firestore yazımı başarılıysa Realtime bağlantısı ana kullanıcı işlemini
+  // bekletmemeli. RTDB çevrimdışı kuyruğu sinyali bağlantı gelince gönderir.
+  publishDataTrigger(collectionName, action, documentId).catch(error => {
+    console.error(`${collectionName} Realtime tetikleyici hatası:`, error);
+  });
+};
+
+const loadCollectionFromFirestore = async (collectionName) => {
+  const snapshot = await getDocs(collection(db, collectionName));
+  const data = snapshot.docs.map(document => ({
+    id: document.id,
+    ...document.data()
+  }));
+
+  localDB.set(collectionName, data);
+  return data;
+};
 
 const getUserId = () => {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -16,6 +46,7 @@ export const addCreditCard = async (data) => {
   const cardData = { ...data, is_active: true };
   const docRef = await addDoc(collection(db, 'creditCards'), cardData);
   localDB.add('creditCards', { id: docRef.id, ...cardData });
+  await notifyDataChange('creditCards', 'create', docRef.id);
   return docRef.id;
 };
 
@@ -32,6 +63,7 @@ export const addBankAccount = async (data) => {
   }
   const docRef = await addDoc(collection(db, 'bankAccounts'), data);
   localDB.add('bankAccounts', { id: docRef.id, ...data });
+  await notifyDataChange('bankAccounts', 'create', docRef.id);
   return docRef.id;
 };
 
@@ -43,6 +75,7 @@ export const getBankAccounts = async () => {
 export const addCategory = async (data) => {
   const docRef = await addDoc(collection(db, 'categories'), data);
   localDB.add('categories', { id: docRef.id, ...data });
+  await notifyDataChange('categories', 'create', docRef.id);
   return docRef.id;
 };
 
@@ -54,6 +87,7 @@ export const getCategories = async () => {
 export const addCari = async (data) => {
   const docRef = await addDoc(collection(db, 'cari'), data);
   localDB.add('cari', { id: docRef.id, ...data });
+  await notifyDataChange('cari', 'create', docRef.id);
   return docRef.id;
 };
 
@@ -66,6 +100,7 @@ export const addPayment = async (data) => {
   const paymentData = { ...data, createdAt: new Date() };
   const docRef = await addDoc(collection(db, 'payments'), paymentData);
   localDB.add('payments', { id: docRef.id, ...paymentData });
+  await notifyDataChange('payments', 'create', docRef.id);
   return { id: docRef.id };
 };
 
@@ -73,6 +108,7 @@ export const addPaymentWithId = async (customId, data) => {
   const paymentData = { ...data, createdAt: new Date() };
   await setDoc(doc(db, 'payments', customId), paymentData);
   localDB.add('payments', { id: customId, ...paymentData });
+  await notifyDataChange('payments', 'create', customId);
   return customId;
 };
 
@@ -123,30 +159,37 @@ export const getPayments = async (filters = {}) => {
 export const updatePayment = async (id, data) => {
   await updateDoc(doc(db, 'payments', id), data);
   localDB.update('payments', id, data);
+  await notifyDataChange('payments', 'update', id);
 };
 
 export const deletePayment = async (id) => {
   await deleteDoc(doc(db, 'payments', id));
   localDB.delete('payments', id);
+  await notifyDataChange('payments', 'delete', id);
 };
 
 // Admin: Tüm ödemeleri sil
 export const deleteAllPayments = async () => {
   const snapshot = await getDocs(collection(db, 'payments'));
   const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-  return await Promise.all(deletePromises);
+  const result = await Promise.all(deletePromises);
+  localDB.set('payments', []);
+  await notifyDataChange('payments', 'delete-all');
+  return result;
 };
 
 // Genel silme fonksiyonu
 export const deleteDocument = async (collectionName, id) => {
   await deleteDoc(doc(db, collectionName, id));
   localDB.delete(collectionName, id);
+  await notifyDataChange(collectionName, 'delete', id);
 };
 
 // Genel güncelleme fonksiyonu
 export const updateDocument = async (collectionName, id, data) => {
   await updateDoc(doc(db, collectionName, id), data);
   localDB.update(collectionName, id, data);
+  await notifyDataChange(collectionName, 'update', id);
 };
 
 // Hatırlatmalar
@@ -154,6 +197,7 @@ export const addReminder = async (data) => {
   const reminderData = { ...data, createdAt: new Date(), isActive: true };
   const docRef = await addDoc(collection(db, 'reminders'), reminderData);
   localDB.add('reminders', { id: docRef.id, ...reminderData });
+  await notifyDataChange('reminders', 'create', docRef.id);
   return { id: docRef.id };
 };
 
@@ -164,11 +208,13 @@ export const getReminders = async () => {
 export const updateReminder = async (id, data) => {
   await updateDoc(doc(db, 'reminders', id), data);
   localDB.update('reminders', id, data);
+  await notifyDataChange('reminders', 'update', id);
 };
 
 export const deleteReminder = async (id) => {
   await deleteDoc(doc(db, 'reminders', id));
   localDB.delete('reminders', id);
+  await notifyDataChange('reminders', 'delete', id);
 };
 
 // Hatırlatma Logları
@@ -263,6 +309,7 @@ export const sendMessage = async (data) => {
     const messages = localDB.get('messages') || [];
     messages.push({ id: docRef.id, ...data, deletedBy: {}, starredBy: {} });
     localDB.set('messages', messages);
+    await notifyDataChange('messages', 'create', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('sendMessage hatası:', error);
@@ -371,6 +418,7 @@ export const moveToTrash = async (messageId) => {
       messages[index].deletedAt[userId] = new Date().toISOString();
       localDB.set('messages', messages);
     }
+    await notifyDataChange('messages', 'update', messageId);
   } catch (error) {
     console.error('moveToTrash hatası:', error);
     throw error;
@@ -385,6 +433,7 @@ export const restoreFromTrash = async (messageId) => {
       [`deletedBy.${userId}`]: false,
       [`deletedAt.${userId}`]: null
     });
+    await notifyDataChange('messages', 'update', messageId);
   } catch (error) {
     console.error('restoreFromTrash hatası:', error);
   }
@@ -421,9 +470,12 @@ export const deleteOldTrashMessages = async () => {
       });
     });
     await Promise.all(deletePromises);
+    if (oldMessages.length > 0) {
+      await notifyDataChange('messages', 'update');
+    }
     
     return oldMessages.length;
-  } catch (error) {
+  } catch {
     return 0;
   }
 };
@@ -439,6 +491,7 @@ export const markMessageAsRead = async (messageId) => {
       messages[index].read = true;
       localDB.set('messages', messages);
     }
+    await notifyDataChange('messages', 'update', messageId);
   } catch (error) {
     console.error('markMessageAsRead hatası:', error);
   }
@@ -455,7 +508,7 @@ export const getUnreadMessageCount = async (userId) => {
     // Bu kullanıcı tarafından silinmemiş mesajları say
     const unreadCount = snapshot.docs.filter(doc => !doc.data().deletedBy?.[userId]).length;
     return unreadCount;
-  } catch (error) {
+  } catch {
     return 0;
   }
 };
@@ -482,65 +535,46 @@ export const getUnreadMessages = async (userId) => {
           fromUsername: fromUser?.username || data.fromUsername || 'Bilinmeyen'
         };
       });
-  } catch (error) {
+  } catch {
     return [];
   }
 };
 
 export const listenToUnreadMessages = (userId, callback) => {
-  const q = query(
-    collection(db, 'messages'),
-    where('to', '==', userId),
-    where('read', '==', false)
-  );
-  
-  return onSnapshot(q, async (snapshot) => {
-    const users = await getUsers();
-    const messages = localDB.get('messages') || [];
-    
-    snapshot.docChanges().forEach((change) => {
-      const msgData = { id: change.doc.id, ...change.doc.data() };
-      const existingIndex = messages.findIndex(m => m.id === msgData.id);
-      
-      if (change.type === 'added') {
-        if (existingIndex === -1) {
-          messages.push(msgData);
-        }
-      } else if (change.type === 'modified') {
-        if (existingIndex !== -1) {
-          messages[existingIndex] = msgData;
-        }
-      } else if (change.type === 'removed') {
-        if (existingIndex !== -1) {
-          messages[existingIndex].read = true;
-        }
-      }
-    });
-    
-    localDB.set('messages', messages);
-    
-    // Bu kullanıcı tarafından silinmemiş mesajları filtrele
-    const unreadMessages = snapshot.docs
-      .filter(doc => !doc.data().deletedBy?.[userId])
-      .map(doc => {
-        const data = doc.data();
-        const fromUser = users.find(u => u.uid === data.from);
-        return {
-          id: doc.id,
-          ...data,
-          fromUsername: fromUser?.username || data.fromUsername || 'Bilinmeyen'
-        };
-      });
-    
-    callback(unreadMessages);
-  });
+  let disposed = false;
+  let refreshSequence = 0;
+
+  const refreshUnreadMessages = async () => {
+    const sequence = ++refreshSequence;
+    const unreadMessages = await getUnreadMessages(userId);
+
+    if (!disposed && sequence === refreshSequence) {
+      callback(unreadMessages);
+    }
+  };
+
+  const handleDataUpdated = (event) => {
+    const changedCollection = event.detail?.collectionName;
+    if (!changedCollection || changedCollection === 'messages') {
+      refreshUnreadMessages();
+    }
+  };
+
+  window.addEventListener('dataUpdated', handleDataUpdated);
+  refreshUnreadMessages();
+
+  return () => {
+    disposed = true;
+    window.removeEventListener('dataUpdated', handleDataUpdated);
+  };
 };
 
 export const getUsers = async () => {
   try {
     const snapshot = await getDocs(collection(db, 'users'));
     return snapshot.docs.map(doc => {
-      const { password, ...userData } = doc.data();
+      const userData = { ...doc.data() };
+      delete userData.password;
       return { uid: doc.id, ...userData };
     });
   } catch (error) {
@@ -574,6 +608,9 @@ export const restoreBackup = async (backup) => {
         const { id, ...data } = docData;
         await setDoc(doc(db, colName, id), data);
       }
+      if (REALTIME_COLLECTIONS.includes(colName)) {
+        await notifyDataChange(colName, 'restore');
+      }
     }
     return true;
   } catch (error) {
@@ -582,46 +619,107 @@ export const restoreBackup = async (backup) => {
   }
 };
 
-// Realtime Listeners
+// Firestore verilerini Realtime Database tetikleyicileriyle yenile
 export const listenToCollection = (collectionName, callback) => {
-  const q = query(collection(db, collectionName));
-  return onSnapshot(q, (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    // LocalDB cache'i güncelle (dirty işaretlemeden)
-    localDB.set(collectionName, data);
-    callback(data);
-    window.dispatchEvent(new Event('dataUpdated'));
-  });
+  let disposed = false;
+  let refreshInProgress = null;
+  let refreshAgain = false;
+
+  const refresh = async (signal = null) => {
+    if (refreshInProgress) {
+      refreshAgain = true;
+      return refreshInProgress;
+    }
+
+    refreshInProgress = (async () => {
+      do {
+        refreshAgain = false;
+        const data = await loadCollectionFromFirestore(collectionName);
+        if (disposed) return;
+
+        callback(data);
+        window.dispatchEvent(new CustomEvent('dataUpdated', {
+          detail: { collectionName, signal }
+        }));
+      } while (refreshAgain && !disposed);
+    })()
+      .catch(error => {
+        console.error(`${collectionName} yenileme hatası:`, error);
+      })
+      .finally(() => {
+        refreshInProgress = null;
+      });
+
+    return refreshInProgress;
+  };
+
+  const unsubscribe = listenToDataTriggers(
+    [collectionName],
+    ({ signal }) => refresh(signal)
+  );
+
+  refresh();
+
+  return () => {
+    disposed = true;
+    unsubscribe();
+  };
 };
 
 export const startAllListeners = () => {
-  const collections = ['creditCards', 'bankAccounts', 'categories', 'cari', 'payments', 'reminders', 'messages'];
-  const unsubscribers = [];
-  
-  collections.forEach(col => {
-    try {
-      const unsubscribe = listenToCollection(col, (data) => {
-        console.log(`🔔 ${col} güncellendi: ${data.length} kayıt`);
-      });
-      unsubscribers.push(unsubscribe);
-    } catch (error) {
-      console.error(`${col} listener error:`, error);
+  let disposed = false;
+  const activeRefreshes = new Map();
+  const queuedRefreshes = new Set();
+
+  const refreshCollection = async (collectionName, signal = null) => {
+    if (activeRefreshes.has(collectionName)) {
+      queuedRefreshes.add(collectionName);
+      return activeRefreshes.get(collectionName);
     }
+
+    const refreshPromise = (async () => {
+      do {
+        queuedRefreshes.delete(collectionName);
+        const data = await loadCollectionFromFirestore(collectionName);
+        if (disposed) return;
+
+        console.log(`🔔 ${collectionName} güncellendi: ${data.length} kayıt`);
+        window.dispatchEvent(new CustomEvent('dataUpdated', {
+          detail: { collectionName, signal }
+        }));
+      } while (queuedRefreshes.has(collectionName) && !disposed);
+    })()
+      .catch(error => {
+        console.error(`${collectionName} yenileme hatası:`, error);
+      })
+      .finally(() => {
+        activeRefreshes.delete(collectionName);
+      });
+
+    activeRefreshes.set(collectionName, refreshPromise);
+    return refreshPromise;
+  };
+
+  const unsubscribe = listenToDataTriggers(
+    REALTIME_COLLECTIONS,
+    ({ collectionName, signal }) => refreshCollection(collectionName, signal)
+  );
+
+  REALTIME_COLLECTIONS.forEach(collectionName => {
+    refreshCollection(collectionName);
   });
   
-  console.log('✅ Tüm Firestore listeners başlatıldı');
-  return () => unsubscribers.forEach(unsub => unsub());
+  console.log('✅ Realtime Database tetikleyicileri başlatıldı');
+  return () => {
+    disposed = true;
+    unsubscribe();
+  };
 };
 
 // Sync Sinyali Gönder
 export const sendSyncSignal = async (userId, username, action = 'update') => {
   try {
-    await addDoc(collection(db, 'syncSignals'), {
-      userId,
-      username,
-      action,
-      timestamp: Date.now()
-    });
+    await publishDataTrigger('_global', action, null, { userId, username });
   } catch (error) {
     console.error('Sinyal gönderme hatası:', error);
   }
@@ -630,27 +728,15 @@ export const sendSyncSignal = async (userId, username, action = 'update') => {
 // Sync Sinyallerini Dinle
 export const listenToSyncSignals = (currentUserId, callback) => {
   try {
-    const fiveSecondsAgo = Date.now() - 5000;
-    
-    const q = query(
-      collection(db, 'syncSignals'),
-      where('timestamp', '>', fiveSecondsAgo),
-      orderBy('timestamp', 'desc')
-    );
-    
-    return onSnapshot(q, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          const signal = change.doc.data();
-          if (signal.userId !== currentUserId) {
-            console.log(`📡 ${signal.username} değişiklik yaptı!`);
-            callback(signal);
-          }
+    return listenToDataTriggers(
+      ['_global'],
+      ({ signal }) => {
+        if (signal.userId !== currentUserId) {
+          console.log(`📡 ${signal.username} değişiklik yaptı!`);
+          callback(signal);
         }
-      });
-    }, (error) => {
-      console.error('Sync signal listener error:', error);
-    });
+      }
+    );
   } catch (error) {
     console.error('listenToSyncSignals error:', error);
     return () => {};

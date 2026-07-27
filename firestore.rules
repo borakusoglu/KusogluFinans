@@ -74,10 +74,5 @@ service cloud.firestore {
     match /changeLog/{logId} {
       allow read, write: if true;
     }
-    
-    // SyncSignals koleksiyonu
-    match /syncSignals/{signalId} {
-      allow read, write: if true;
-    }
   }
 }

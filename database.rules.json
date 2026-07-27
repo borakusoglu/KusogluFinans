@@ -1,0 +1,24 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "onlineUsers": {
+      ".read": true,
+      "$userId": {
+        ".write": true,
+        ".validate": "newData.hasChildren(['username', 'online', 'lastSeen']) && newData.child('username').isString() && newData.child('online').isBoolean() && newData.child('lastSeen').isNumber()"
+      }
+    },
+    "payment_logs": {
+      ".read": true,
+      ".write": true
+    },
+    "dataTriggers": {
+      ".read": true,
+      "$collection": {
+        ".write": true,
+        ".validate": "newData.hasChildren(['collection', 'action', 'clientId', 'nonce', 'timestamp']) && newData.child('collection').val() === $collection && newData.child('action').isString() && newData.child('clientId').isString() && newData.child('nonce').isString() && newData.child('timestamp').isNumber()"
+      }
+    }
+  }
+}

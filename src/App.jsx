@@ -31,57 +31,65 @@ function App() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
+    if (!user) return undefined;
+
+    let disposed = false;
+    let stopCollectionListeners = () => {};
+    let stopAutoBackup = () => {};
+    let stopCloseListener = () => {};
+
     const initializeData = async () => {
-      if (user) {
-        console.log('🔥 Firestore realtime listeners başlatılıyor...');
-        
-        // Online durumunu ayarla
-        const onlineStatus = (await import('./utils/onlineStatus')).default;
-        await onlineStatus.setOnline(user.uid, user.username);
-        
-        // Firestore koleksiyonları için realtime listener
-        const stopCollectionListeners = startAllListeners();
-        
-        // Otomatik backup (her gece 00:00)
-        const transferManager = (await import('./utils/transferManager')).default;
-        transferManager.startAutoDailyBackup();
-        
-        return () => {
-          stopCollectionListeners();
-        };
-      }
-    };
-    
-    if (user) {
-      initializeData();
-      window.user = user;
+      console.log('🔥 Realtime Database tetikleyicileri başlatılıyor...');
+
+      const onlineStatus = (await import('./utils/onlineStatus')).default;
+      if (disposed) return;
+
+      await onlineStatus.setOnline(user.uid, user.username);
+      if (disposed) return;
+
+      // Realtime sinyali geldiğinde ilgili Firestore koleksiyonunu yenile.
+      stopCollectionListeners = startAllListeners();
+
+      const transferManager = (await import('./utils/transferManager')).default;
+      if (disposed) return;
+      stopAutoBackup = transferManager.startAutoDailyBackup();
       
       // Tauri window close event
-      const setupTauriClose = async () => {
-        try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
-          const appWindow = getCurrentWindow();
-          
-          const unlisten = await appWindow.onCloseRequested(async (event) => {
-            // Offline yap
-            const onlineStatus = (await import('./utils/onlineStatus')).default;
-            await onlineStatus.setOffline();
-            
-            // Cache kaydet
-            const transferManager = (await import('./utils/transferManager')).default;
-            await transferManager.exportData(true);
-            await appWindow.close();
-          });
-          
-          return unlisten;
-        } catch (error) {
-          console.error('Tauri close setup error:', error);
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const appWindow = getCurrentWindow();
+        const unlisten = await appWindow.onCloseRequested(async () => {
+          await onlineStatus.setOffline();
+          await transferManager.exportData(true);
+          await appWindow.close();
+        });
+
+        if (disposed) {
+          unlisten();
+        } else {
+          stopCloseListener = unlisten;
         }
-      };
-      
-      setupTauriClose();
-    }
-  }, [user?.uid]);
+      } catch (error) {
+        console.error('Tauri close setup error:', error);
+      }
+    };
+
+    window.user = user;
+    initializeData().catch(error => {
+      console.error('Uygulama verileri başlatılamadı:', error);
+    });
+
+    return () => {
+      disposed = true;
+      stopCollectionListeners();
+      stopAutoBackup();
+      stopCloseListener();
+
+      if (window.user?.uid === user.uid) {
+        delete window.user;
+      }
+    };
+  }, [user]);
 
   useEffect(() => {
     const verifyDevice = async () => {
@@ -94,11 +102,12 @@ function App() {
         }
         
         const storedHwid = localStorage.getItem('device_hwid');
+        const isBrowserPreview = import.meta.env.DEV && !window.__TAURI_INTERNALS__;
         
-        if (storedHwid && storedHwid !== hwid) {
+        if (storedHwid && storedHwid !== hwid && !isBrowserPreview) {
           setDeviceLocked(true);
           localStorage.clear();
-        } else if (!storedHwid) {
+        } else if (!storedHwid || isBrowserPreview) {
           localStorage.setItem('device_hwid', hwid);
         }
         
