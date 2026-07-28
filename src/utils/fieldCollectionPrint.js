@@ -17,6 +17,36 @@ const money = (amount) => Number(amount || 0).toLocaleString('tr-TR', {
 
 const pad = (value, length) => String(value ?? '').slice(0, length).padEnd(length, ' ');
 
+const normalizePaymentType = (row) => `${row.payment_type_label || ''} ${row.payment_type_code || ''}`
+  .toLocaleLowerCase('tr-TR')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '');
+
+const paymentGroup = (row) => {
+  const paymentType = normalizePaymentType(row);
+  if (/(kredi\s*kart|credit\s*card|kart|pos)/.test(paymentType)) return 'card';
+  if (/(nakit|cash)/.test(paymentType)) return 'cash';
+  return 'other';
+};
+
+const summarizePayments = (rows) => rows.reduce((summary, row) => {
+  const group = paymentGroup(row);
+  summary[group].count += 1;
+  summary[group].amount += Number(row.amount || 0);
+  summary.total.count += 1;
+  summary.total.amount += Number(row.amount || 0);
+  return summary;
+}, {
+  cash: { count: 0, amount: 0 },
+  card: { count: 0, amount: 0 },
+  other: { count: 0, amount: 0 },
+  total: { count: 0, amount: 0 },
+});
+
+const summaryLine = (label, count, amount) => (
+  `${`${label} (${count} tahsilat)`.padEnd(91, ' ')}${`${money(amount)} TL`.padStart(17)}`
+);
+
 export function buildSalespersonReport(plasiyerCode, rows, printedAt = new Date()) {
   const titleDate = printedAt.toLocaleString('tr-TR');
   const divider = '-'.repeat(108);
@@ -39,8 +69,23 @@ export function buildSalespersonReport(plasiyerCode, rows, printedAt = new Date(
     if (row.description) lines.push(`  Aciklama: ${row.description}`);
   });
 
-  const total = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
-  lines.push(divider, `${rows.length} tahsilat`.padEnd(91, ' ') + `${money(total)} TL`.padStart(17), '', 'Finans Kontrol: ____________________', '');
+  const summary = summarizePayments(rows);
+  lines.push(
+    divider,
+    'TAHSILAT OZETI',
+    summaryLine('Nakit', summary.cash.count, summary.cash.amount),
+    summaryLine('Kredi Karti', summary.card.count, summary.card.amount),
+  );
+  if (summary.other.count > 0) {
+    lines.push(summaryLine('Diger Odeme', summary.other.count, summary.other.amount));
+  }
+  lines.push(
+    divider,
+    summaryLine('GENEL TOPLAM', summary.total.count, summary.total.amount),
+    '',
+    'Finans Kontrol: ____________________',
+    '',
+  );
   return lines.join('\r\n');
 }
 export async function printFieldCollections(rows, printedBy) {

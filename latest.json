@@ -1,11 +1,11 @@
 {
-  "version": "1.2.5",
-  "notes": "Version 1.2.5 - Firebase Realtime Database tetikleyicileriyle cihazlar arasi veri yenileme, giris ve kayit akisi iyilestirmeleri ile aktarim guvenilirligi guncellendi.",
-  "pub_date": "2026-07-27T22:02:42Z",
+  "version": "1.2.6",
+  "notes": "Version 1.2.6 - Plasiyer tahsilat ciktisinda nakit ve kredi karti tutarlari ayri hesaplanip en altta genel toplam olarak gosteriliyor.",
+  "pub_date": "2026-07-28T21:30:02Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeHFCamo3MGRpVmdUQVJub0FTQXhIQnZVbExyUVJhWjZ0RTZZc0dvcE0wdlE2UkFMSUVFSlhkT2ZnWjZlWWZFVFZ3S2x6RkZhYitLdFhZMEpGWjhCdFF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MTg5NzQ5CWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjIuNV94NjQtc2V0dXAuZXhlCmUrWjRlRjRtQWk3WUhhQ2c3V2lkTWpVR3BnNXNlbzJSS2RsZmswQmNZalIxUUJZSndHbGdnTjJmQ1MwNUZLdmtOT0VtRm9Hc3orY1BMVmlSQkV4WEJRPT0K",
-      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.2.5/Kusoglu.Finans.2026_1.2.5_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRCt0MjYyeFVCeG1la3JBNVhpRE1jaThpM3NKMnZIOTZHMkFLdGlpd1pCRHFtYjg3cnVOd1lYYkhxVGRrU2dGa2hZUzRTNGZhVTJhaHRSN2V5RWs2eDNSaDVwdnNOYVFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1Mjc0MTkxCWZpbGU6S3Vzb2dsdSBGaW5hbnMgMjAyNl8xLjIuNl94NjQtc2V0dXAuZXhlCk1tMndsODExUzlGMUJueC9jZ3ZqcWRvYVJCWHRDWEFKa2VtRWx1U0VuNW5HMkpCQXNQTDFlUGdaREVra1Z2cUwzVzE2blRVL2NSSmZNUzNIRkFLSkFRPT0K",
+      "url": "https://github.com/borakusoglu/KusogluFinans/releases/download/v1.2.6/Kusoglu.Finans.2026_1.2.6_x64-setup.exe"
     }
   }
 }
